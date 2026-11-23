@@ -685,7 +685,7 @@ export default function TeamOnboardingPage() {
               <>
                 <ul className="space-y-2">
                   {[...admins, ...managers.filter((member) => !member.inTeam)].map((leader) => (
-                    <li key={leader.id} className="rounded-xl border border-border bg-white p-3">
+                    <li key={leader.id} className="rounded-xl border border-white/20 bg-[#1e8285] p-3 text-white">
                       <MemberRow member={leader} onDelete={handleDelete} />
                     </li>
                   ))}
@@ -719,7 +719,7 @@ export default function TeamOnboardingPage() {
                 {onboardingQueue.map((member) => (
                   <li
                     key={member.id}
-                    className="rounded-xl border border-amber-200 bg-amber-50/60 p-3"
+                    className="rounded-xl border border-white/20 bg-[#1e8285] p-3 text-white"
                   >
                     <MemberRow
                       member={member}
@@ -759,7 +759,7 @@ export default function TeamOnboardingPage() {
                 {[...onboardedLeaders, ...onboardedStaff].map((member) => (
                   <li
                     key={member.id}
-                    className="rounded-xl border border-amber-200 bg-amber-50/60 p-3"
+                    className="rounded-xl border border-white/20 bg-[#1e8285] p-3 text-white"
                   >
                     <MemberRow
                       member={member}
@@ -799,7 +799,7 @@ export default function TeamOnboardingPage() {
                 {unassignedStaff.map((member) => (
                   <li
                     key={member.id}
-                    className="rounded-xl border border-sky-200 bg-sky-50/60 p-3"
+                    className="rounded-xl border border-white/20 bg-[#1e8285] p-3 text-white"
                   >
                     <MemberRow
                       member={member}
@@ -836,9 +836,9 @@ export default function TeamOnboardingPage() {
                 {teamManagers.map((manager) => (
                   <li
                     key={manager.id}
-                    className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4"
+                    className="rounded-2xl border border-white/20 bg-[#1e8285] p-4 text-white"
                   >
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white">
                       Team lead · PMR Doctor
                     </p>
                     <MemberRow member={manager} onDelete={handleDelete} />
@@ -847,11 +847,11 @@ export default function TeamOnboardingPage() {
                 {teamGroups.map(({ supervisor, careStaff }) => (
                   <li
                     key={supervisor.id}
-                    className="rounded-2xl border border-border bg-white p-4"
+                    className="rounded-2xl border border-white/20 bg-[#1e8285] p-4 text-white"
                   >
                     <MemberRow member={supervisor} onDelete={handleDelete} />
                     {careStaff.length === 0 ? (
-                      <p className="mt-2 pl-4 text-sm font-medium text-slate-700">No health care staff yet.</p>
+                      <p className="mt-2 pl-4 text-sm font-medium text-white/90">No health care staff yet.</p>
                     ) : (
                       <ul className="mt-3 space-y-2 border-l-2 border-brand-soft pl-4">
                         {careStaff.map((member) => (
@@ -894,7 +894,7 @@ export default function TeamOnboardingPage() {
                 {rejectedQueue.map((member) => (
                   <li
                     key={member.id}
-                    className="rounded-xl border border-rose-200 bg-rose-50/60 p-3"
+                    className="rounded-xl border border-white/20 bg-[#1e8285] p-3 text-white"
                   >
                     <MemberRow
                       member={member}
@@ -1087,17 +1087,17 @@ function MemberRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-medium text-slate-900">{member.fullName}</p>
-            <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand-strong">
+            <p className="font-medium text-white">{member.fullName}</p>
+            <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium text-white">
               {member.specialty || ROLE_LABELS[member.role]}
             </span>
           </div>
-          <p className="truncate text-sm text-muted">
+          <p className="truncate text-sm text-white/85">
             {member.email}
             {member.phone ? ` · ${member.phone}` : ""}
           </p>
           {member.registration ? (
-            <p className="text-sm font-medium text-slate-700">Reg. {member.registration}</p>
+            <p className="text-sm font-medium text-white/85">Reg. {member.registration}</p>
           ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
@@ -1106,7 +1106,7 @@ function MemberRow({
               <button
                 type="button"
                 onClick={() => submitReview("approved")}
-                className="rounded-lg bg-brand px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-brand-strong"
+                className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-[#1e8285] hover:bg-white/90"
               >
                 Approve
               </button>

@@ -4,7 +4,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import { ApprovalBadge } from "@/components/ApprovalBadge";
 import { getStoredUser } from "@/lib/auth";
 import type { ApprovalDecision, ApprovalStatus } from "@/lib/approvals";
-import type { TeamMember } from "@/lib/team";
+import { memberDesignation, type TeamMember } from "@/lib/team";
 
 function subscribe() {
   return () => {};
@@ -19,46 +19,59 @@ export type ApprovalQueueItem = {
   reviewNote: string;
   reviewedByName: string | null;
   reviewedAt: string | null;
+  recommendationNote?: string;
+  recommendedByName?: string | null;
 };
+
+export type ApprovalAssignment = { id: string; name: string } | null;
 
 export function PmrApprovalPanel({
   title,
   description,
   emptyMessage,
   items,
-  pmrDoctors,
+  approvers,
   onReview,
   onRemove,
+  assignableMembers,
   className = "",
 }: {
   title: string;
   description: string;
   emptyMessage: string;
   items: ApprovalQueueItem[];
-  pmrDoctors: TeamMember[];
-  onReview: (id: string, decision: ApprovalDecision, reviewer: TeamMember, note: string) => void;
-  onRemove?: (id: string) => void;
+  approvers: TeamMember[];
+  onReview: (
+    id: string,
+    decision: ApprovalDecision,
+    reviewer: TeamMember,
+    note: string,
+    assignment?: ApprovalAssignment,
+  ) => void | Promise<void>;
+  onRemove?: (id: string) => void | Promise<void>;
+  assignableMembers?: TeamMember[];
   className?: string;
 }) {
   const mounted = useSyncExternalStore(subscribe, () => true, () => false);
   const user = useMemo(() => (mounted ? getStoredUser() : null), [mounted]);
 
-  const [selectedPmrId, setSelectedPmrId] = useState("");
+  const [selectedApproverId, setSelectedApproverId] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [selectedDoctors, setSelectedDoctors] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const defaultPmrId = useMemo(() => {
-    if (pmrDoctors.length === 0) return "";
+  const defaultApproverId = useMemo(() => {
+    if (approvers.length === 0) return "";
     const byEmail = user
-      ? pmrDoctors.find((member) => member.email.toLowerCase() === user.email.toLowerCase())
+      ? approvers.find((member) => member.email.toLowerCase() === user.email.toLowerCase())
       : undefined;
-    return (byEmail ?? pmrDoctors[0]).id;
-  }, [pmrDoctors, user]);
+    return (byEmail ?? approvers[0]).id;
+  }, [approvers, user]);
 
   const reviewer =
-    pmrDoctors.find((member) => member.id === selectedPmrId) ??
-    pmrDoctors.find((member) => member.id === defaultPmrId) ??
+    approvers.find((member) => member.id === selectedApproverId) ??
+    approvers.find((member) => member.id === defaultApproverId) ??
     null;
 
   const signedInMatches = Boolean(
@@ -71,7 +84,22 @@ export function PmrApprovalPanel({
 
   function approve(item: ApprovalQueueItem) {
     if (!reviewer) return;
-    onReview(item.id, "approved", reviewer, notes[item.id] ?? "");
+
+    let assignment: ApprovalAssignment | undefined;
+    if (assignableMembers) {
+      const providerId = selectedDoctors[item.id];
+      const provider = assignableMembers.find((member) => member.id === providerId);
+      if (!provider) {
+        setErrors((prev) => ({
+          ...prev,
+          [item.id]: "Select a Duty Doctor or care team member before approving.",
+        }));
+        return;
+      }
+      assignment = { id: provider.id, name: provider.fullName };
+    }
+
+    onReview(item.id, "approved", reviewer, notes[item.id] ?? "", assignment);
     setOpenId(null);
     setErrors((prev) => ({ ...prev, [item.id]: "" }));
   }
@@ -112,9 +140,9 @@ export function PmrApprovalPanel({
         </span>
       </div>
 
-      {pmrDoctors.length === 0 ? (
+      {approvers.length === 0 ? (
         <p className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          Onboard the PMR doctor first. Only a PMR doctor can verify and approve these records.
+          Onboard an Admin or PMR Doctor first. Only they can verify and approve these records.
         </p>
       ) : (
         <div className="mt-3">
@@ -122,15 +150,15 @@ export function PmrApprovalPanel({
             htmlFor={reviewerFieldId}
             className="mb-1.5 block text-xs font-medium text-slate-700"
           >
-            Approving PMR doctor
+            Approving Admin or PMR Doctor
           </label>
           <select
             id={reviewerFieldId}
             value={reviewer?.id ?? ""}
-            onChange={(event) => setSelectedPmrId(event.target.value)}
+            onChange={(event) => setSelectedApproverId(event.target.value)}
             className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
           >
-            {pmrDoctors.map((member) => (
+            {approvers.map((member) => (
               <option key={member.id} value={member.id}>
                 {member.fullName} ({member.email})
               </option>
@@ -138,7 +166,7 @@ export function PmrApprovalPanel({
           </select>
           {!signedInMatches ? (
             <p className="mt-1.5 text-xs text-muted">
-              Choose the PMR doctor approving for this demo session.
+              Choose the Admin or PMR Doctor approving for this demo session.
             </p>
           ) : null}
         </div>
@@ -165,7 +193,7 @@ export function PmrApprovalPanel({
 
               {item.reviewedAt ? (
                 <p className="mt-2 text-[11px] text-muted">
-                  Reviewed by {item.reviewedByName || "PMR doctor"} ·{" "}
+                  Reviewed by {item.reviewedByName || "approver"} ·{" "}
                   {new Date(item.reviewedAt).toLocaleString()}
                 </p>
               ) : null}
@@ -178,8 +206,50 @@ export function PmrApprovalPanel({
                       : "bg-slate-100 text-slate-700"
                   }`}
                 >
-                  <span className="font-semibold">PMR note:</span> {item.reviewNote}
+                  <span className="font-semibold">Review note:</span> {item.reviewNote}
                 </p>
+              ) : null}
+
+              {item.recommendationNote ? (
+                <p className="mt-2 rounded-lg bg-sky-50 px-2.5 py-2 text-xs text-sky-800">
+                  <span className="font-semibold">
+                    Duty Doctor recommendation
+                    {item.recommendedByName ? ` (${item.recommendedByName})` : ""}:
+                  </span>{" "}
+                  {item.recommendationNote}
+                </p>
+              ) : null}
+
+              {assignableMembers ? (
+                <div className="mt-2.5">
+                  <label
+                    htmlFor={`assign-provider-${item.id}`}
+                    className="mb-1.5 block text-xs font-medium text-slate-700"
+                  >
+                    Assign care provider on approval
+                  </label>
+                  <select
+                    id={`assign-provider-${item.id}`}
+                    value={selectedDoctors[item.id] ?? ""}
+                    onChange={(event) =>
+                      setSelectedDoctors((prev) => ({ ...prev, [item.id]: event.target.value }))
+                    }
+                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
+                  >
+                    <option value="">Select a Duty Doctor or care team member</option>
+                    {assignableMembers.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.fullName} · {memberDesignation(member)}
+                      </option>
+                    ))}
+                  </select>
+                  {assignableMembers.length === 0 ? (
+                    <p className="mt-1.5 text-xs text-amber-700">
+                      Add a Duty Doctor with Team In, or assign staff to one, before approving a
+                      patient.
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
 
               {errors[item.id] ? (
@@ -206,7 +276,7 @@ export function PmrApprovalPanel({
                     placeholder="Explain what needs to be corrected before approval."
                     className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
                   />
-                  <div className="mt-2 flex flex-nowrap gap-1">
+                  <div className="mt-2 flex flex-wrap gap-1">
                     <button
                       type="button"
                       onClick={() => reject(item)}
@@ -236,7 +306,7 @@ export function PmrApprovalPanel({
                   </div>
                 </div>
               ) : (
-                <div className="mt-2.5 flex flex-nowrap gap-1.5">
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
                   <button
                     type="button"
                     onClick={() => approve(item)}

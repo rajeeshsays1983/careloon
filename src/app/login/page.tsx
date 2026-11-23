@@ -1,15 +1,38 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { getStoredUser, login } from "@/lib/auth";
+import {
+  DEMO_CREDENTIALS,
+  getStoredUser,
+  login,
+} from "@/lib/auth";
+import { ensureDataLoaded } from "@/lib/client-store";
+import {
+  getTeamMembers,
+  getTeamMembersServerSnapshot,
+  subscribeToTeamMembers,
+} from "@/lib/team";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const members = useSyncExternalStore(
+    subscribeToTeamMembers,
+    getTeamMembers,
+    getTeamMembersServerSnapshot,
+  );
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const loginNames = members
+    .filter((member) => member.approvalStatus === "approved" && member.role !== "admin")
+    .map((member) => member.username || member.email.split("@")[0]);
+
+  useEffect(() => {
+    void ensureDataLoaded();
+  }, []);
 
   useEffect(() => {
     if (getStoredUser()) {
@@ -22,8 +45,9 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      login(email, password);
-      router.push("/dashboard");
+      await ensureDataLoaded();
+      login(username, password, getTeamMembers());
+      router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
     } finally {
@@ -41,27 +65,26 @@ export default function LoginPage() {
           <p className="text-sm font-medium tracking-wide text-brand">CARELOON</p>
           <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Welcome back</h1>
           <p className="mt-2 text-sm leading-6 text-muted">
-            Sign in to manage palliative care patient onboarding.
+            Sign in as Admin or as an approved care team member.
           </p>
         </div>
 
         <section className="rounded-3xl border border-border bg-surface p-6 shadow-xl shadow-slate-900/5">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-700">
-                Email
+              <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-slate-700">
+                Username
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                inputMode="email"
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full rounded-xl border border-border bg-white px-4 py-3 text-base text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
-                placeholder="you@careloon.com"
+                placeholder="Enter your username"
               />
             </div>
 
@@ -75,11 +98,10 @@ export default function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 required
-                minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-border bg-white px-4 py-3 text-base text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
-                placeholder="At least 6 characters"
+                placeholder="Enter your password"
               />
             </div>
 
@@ -99,7 +121,21 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-5 rounded-xl bg-slate-50 px-4 py-3 text-xs leading-5 text-muted">
-            <span className="font-medium text-slate-700">Demo mode:</span> Use any valid email and a password with 6+ characters. Authentication is stored locally on this device.
+            <p>
+              <span className="font-medium text-slate-700">Admin:</span>{" "}
+              {DEMO_CREDENTIALS.adminUsername} / {DEMO_CREDENTIALS.adminPassword}
+            </p>
+            <p>
+              <span className="font-medium text-slate-700">Staff:</span> use your email or name from
+              Team onboarding / {DEMO_CREDENTIALS.staffPassword}
+            </p>
+            {loginNames.length > 0 ? (
+              <p className="mt-1">
+                <span className="font-medium text-slate-700">Available usernames:</span>{" "}
+                {loginNames.join(", ")}
+              </p>
+            ) : null}
+            <p className="mt-1">Authentication is stored locally on this device.</p>
           </div>
         </section>
       </div>

@@ -3,7 +3,7 @@ export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type ApprovalDecision = Exclude<ApprovalStatus, "pending">;
 
 export const APPROVAL_STATUS_LABELS: Record<ApprovalStatus, string> = {
-  pending: "Awaiting PMR approval",
+  pending: "Awaiting approval",
   approved: "Approved",
   rejected: "Rejected",
 };

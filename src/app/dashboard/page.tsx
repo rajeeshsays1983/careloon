@@ -3,16 +3,37 @@
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
 import { AuthGuard } from "@/components/AuthGuard";
+import { MediaAttachmentEditor } from "@/components/MediaAttachmentEditor";
 import { SignOutButton } from "@/components/SignOutButton";
-import { getPatients, getStoredUser, type Patient } from "@/lib/auth";
 import {
-  getStaffReports,
+  getPatients,
+  getPatientsServerSnapshot,
+  getStoredUser,
+  subscribeToPatients,
+  type Patient,
+} from "@/lib/auth";
+import { formatBytes, type MediaAttachment } from "@/lib/attachments";
+import {
+  acknowledgeStaffReport,
+  getStaffReportsServerSnapshot,
+  getStaffReportsSnapshot,
   REVIEW_STATUS_LABELS,
   reviewStaffReport,
+  subscribeToStaffReports,
+  updateStaffReport,
   type ReviewStatus,
   type StaffReport,
 } from "@/lib/reports";
-import { getTeamMembers, ROLE_LABELS, type TeamMember } from "@/lib/team";
+import {
+  getTeamMembers,
+  getTeamMembersServerSnapshot,
+  getVisibleMembers,
+  isAuthoredBy,
+  memberDesignation,
+  ROLE_LABELS,
+  subscribeToTeamMembers,
+  type TeamMember,
+} from "@/lib/team";
 
 function subscribe() {
   return () => {};
@@ -63,37 +84,81 @@ function addToCounts(counts: PatientCounts, report: StaffReport) {
 export default function DashboardPage() {
   const mounted = useSyncExternalStore(subscribe, () => true, () => false);
   const user = useMemo(() => (mounted ? getStoredUser() : null), [mounted]);
-  const members = useMemo(() => (mounted ? getTeamMembers() : []), [mounted]);
-  const patients = useMemo(() => (mounted ? getPatients() : []), [mounted]);
-  const storedReports = useMemo(() => (mounted ? getStaffReports() : []), [mounted]);
-
-  const [overrides, setOverrides] = useState<Record<string, StaffReport>>({});
-  const [selectedReviewerId, setSelectedReviewerId] = useState("");
-  const [filter, setFilter] = useState<Filter>("pending");
-  const [query, setQuery] = useState("");
-
-  const reviewers = useMemo(
-    () =>
-      members.filter(
-        (member) =>
-          (member.role === "pmr" || member.role === "duty_doctor") &&
-          member.approvalStatus === "approved",
-      ),
-    [members],
+  const members = useSyncExternalStore(
+    subscribeToTeamMembers,
+    getTeamMembers,
+    getTeamMembersServerSnapshot,
+  );
+  const patients = useSyncExternalStore(
+    subscribeToPatients,
+    getPatients,
+    getPatientsServerSnapshot,
+  );
+  const storedReports = useSyncExternalStore(
+    subscribeToStaffReports,
+    getStaffReportsSnapshot,
+    getStaffReportsServerSnapshot,
   );
 
-  const defaultReviewerId = useMemo(() => {
-    if (reviewers.length === 0) return "";
-    const byEmail = user
-      ? reviewers.find((member) => member.email.toLowerCase() === user.email.toLowerCase())
-      : undefined;
-    return (byEmail ?? reviewers.find((member) => member.role === "pmr") ?? reviewers[0]).id;
-  }, [reviewers, user]);
+  const [overrides, setOverrides] = useState<Record<string, StaffReport>>({});
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
 
-  const reviewer =
-    reviewers.find((member) => member.id === selectedReviewerId) ??
-    reviewers.find((member) => member.id === defaultReviewerId) ??
-    null;
+  const currentMember = useMemo(() => {
+    if (!user) return null;
+    return (
+      members.find(
+        (member) =>
+          member.email.toLowerCase() === user.email.toLowerCase() &&
+          member.approvalStatus === "approved",
+      ) ?? null
+    );
+  }, [members, user]);
+
+  const teamStaff = useMemo(() => {
+    if (currentMember?.role !== "supervisor") return [];
+    return members.filter(
+      (member) =>
+        member.role === "staff" &&
+        member.approvalStatus === "approved" &&
+        member.reportsTo === currentMember.id,
+    );
+  }, [currentMember, members]);
+
+  const visibleMembers = useMemo(
+    () => getVisibleMembers(members, currentMember),
+    [currentMember, members],
+  );
+
+  const canViewAll = currentMember?.role === "admin" || currentMember?.role === "manager";
+
+  const viewOptions = useMemo(() => {
+    if (!currentMember) return [];
+    if (canViewAll) {
+      return members
+        .filter((member) => member.approvalStatus === "approved" && member.role !== "admin")
+        .sort((a, b) => a.fullName.localeCompare(b.fullName));
+    }
+    if (currentMember.role === "supervisor") return [currentMember, ...teamStaff];
+    return [];
+  }, [canViewAll, currentMember, members, teamStaff]);
+
+  const selectedMember = viewOptions.find((member) => member.id === selectedMemberId) ?? null;
+
+  // Selecting a Duty Doctor means viewing their whole team, not just the
+  // updates they personally submitted.
+  const selectedScopeMembers = useMemo(() => {
+    if (!selectedMember) return [];
+    if (selectedMember.role !== "supervisor") return [selectedMember];
+    const assignedStaff = members.filter(
+      (member) =>
+        member.role === "staff" &&
+        member.approvalStatus === "approved" &&
+        member.reportsTo === selectedMember.id,
+    );
+    return [selectedMember, ...assignedStaff];
+  }, [members, selectedMember]);
 
   const reports = useMemo(() => {
     const byId = new Map<string, StaffReport>();
@@ -103,13 +168,21 @@ export default function DashboardPage() {
   }, [storedReports, overrides]);
 
   const scopedReports = useMemo(() => {
-    if (!reviewer) return [];
-    if (reviewer.role === "pmr") return reports;
-    return reports.filter((report) => {
-      const staff = members.find((member) => member.id === report.staffId);
-      return staff?.approvalStatus === "approved" && staff.reportsTo === reviewer.id;
-    });
-  }, [members, reports, reviewer]);
+    if (!currentMember) return [];
+    const allowed = selectedScopeMembers.length > 0 ? selectedScopeMembers : visibleMembers;
+    return reports.filter((report) =>
+      allowed.some((member) => isAuthoredBy(report.staffId, member)),
+    );
+  }, [currentMember, reports, selectedScopeMembers, visibleMembers]);
+
+  function canReviewReport(report: StaffReport): boolean {
+    if (!currentMember || isAuthoredBy(report.staffId, currentMember)) return false;
+    if (currentMember.role === "admin" || currentMember.role === "manager") return true;
+    if (currentMember.role === "supervisor") {
+      return teamStaff.some((member) => isAuthoredBy(report.staffId, member));
+    }
+    return false;
+  }
 
   const patientCounts = useMemo(() => {
     const counts = new Map<string, PatientCounts>();
@@ -184,9 +257,27 @@ export default function DashboardPage() {
     });
   }, [patientCounts, patients, visibleReports]);
 
-  const signedInEmailMatches = Boolean(
-    user && reviewer && reviewer.email.toLowerCase() === user.email.toLowerCase(),
-  );
+  const scopeDescription = !currentMember
+    ? "Your account is not linked to an approved team member."
+    : selectedMember
+      ? selectedMember.role === "supervisor"
+        ? `Showing activity for ${selectedMember.fullName} and staff assigned to them.`
+        : `Showing activity for ${selectedMember.fullName}.`
+      : currentMember.role === "staff"
+        ? "Showing only the treatment reports you submitted."
+        : currentMember.role === "supervisor"
+          ? "Showing your activity and reports from staff assigned to you."
+          : "Showing activity from all care team members.";
+
+  const dashboardTitle = selectedMember
+    ? selectedMember.role === "supervisor"
+      ? `${selectedMember.fullName}'s team dashboard`
+      : `${selectedMember.fullName}'s dashboard`
+    : currentMember?.role === "staff"
+      ? "My treatment dashboard"
+      : currentMember?.role === "supervisor"
+        ? "Team activity dashboard"
+        : "Patient review dashboard";
 
   function handleReviewed(updated: StaffReport) {
     setOverrides((prev) => ({ ...prev, [updated.id]: updated }));
@@ -200,68 +291,74 @@ export default function DashboardPage() {
             <div className="min-w-0">
               <p className="text-xs font-semibold tracking-[0.16em] text-brand">CARELOON</p>
               <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                Patient review dashboard
+                {dashboardTitle}
               </h1>
               <p className="mt-1 text-sm text-muted">
-                {user ? `Signed in as ${user.name}` : "Patient-wise reports for doctor review."}
+                {user
+                  ? `Signed in as ${user.name}${currentMember ? ` · ${ROLE_LABELS[currentMember.role]}` : ""}`
+                  : "Patient-wise reports for your team."}
               </p>
             </div>
             <SignOutButton className="justify-self-end sm:col-start-3 sm:row-start-1" />
-            <nav className="col-span-2 row-start-2 flex w-full flex-nowrap items-center gap-1.5 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:w-auto sm:gap-2">
+            <nav className="col-span-2 row-start-2 flex w-full flex-wrap items-center gap-1.5 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:w-auto sm:justify-end sm:gap-2">
+              <Link
+                href="/chat"
+                className="shrink-0 whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
+              >
+                Treatment
+              </Link>
               <Link
                 href="/onboarding"
-                className="whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
+                className="shrink-0 whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
               >
-                Patient onboarding
+                Patient
               </Link>
               <Link
                 href="/team-onboarding"
-                className="whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
+                className="shrink-0 whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
               >
-                Team onboarding
+                Team
               </Link>
             </nav>
           </header>
 
           <section className="mb-5 rounded-2xl border border-border bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-56 flex-1">
                 <label
-                  htmlFor="reviewer"
+                  htmlFor="view-member"
                   className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-600"
                 >
-                  Reviewing as
+                  Viewing
                 </label>
-                {reviewers.length === 0 ? (
+                {!currentMember ? (
                   <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                    Add a PMR doctor or duty doctor in{" "}
+                    Your account is not linked to an approved team member. Ask an Admin to onboard
+                    you in{" "}
                     <Link href="/team-onboarding" className="font-medium underline">
                       Team onboarding
-                    </Link>{" "}
-                    to review reports.
+                    </Link>
+                    .
                   </p>
-                ) : (
+                ) : viewOptions.length > 0 ? (
                   <select
-                    id="reviewer"
-                    value={reviewer?.id ?? ""}
-                    onChange={(event) => setSelectedReviewerId(event.target.value)}
+                    id="view-member"
+                    value={selectedMemberId}
+                    onChange={(event) => setSelectedMemberId(event.target.value)}
                     className="w-full rounded-xl border border-border bg-white px-3 py-2.5 text-sm text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
                   >
-                    {reviewers.map((member) => (
+                    <option value="">
+                      {canViewAll ? "All care team members" : "My team activity"}
+                    </option>
+                    {viewOptions.map((member) => (
                       <option key={member.id} value={member.id}>
-                        {member.fullName} · {ROLE_LABELS[member.role]}
+                        {member.fullName} · {memberDesignation(member)}
+                        {member.id === currentMember.id ? " (you)" : ""}
                       </option>
                     ))}
                   </select>
-                )}
-                {reviewer ? (
-                  <p className="mt-1.5 text-xs leading-5 text-muted">
-                    {reviewer.role === "pmr"
-                      ? "As PMR admin you can review every submitted report in the care team."
-                      : "You can review reports from health care staff who report to you."}
-                    {!signedInEmailMatches ? " Reviewer is chosen for this demo session." : ""}
-                  </p>
                 ) : null}
+                <p className="mt-1.5 text-xs leading-5 text-muted">{scopeDescription}</p>
               </div>
 
               <div className="w-full sm:w-64">
@@ -313,22 +410,35 @@ export default function DashboardPage() {
                     {stats.pending}
                   </span>
                 ) : null}
+                {item.id === "changes_requested" && stats.changes > 0 ? (
+                  <span
+                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] ${
+                      filter === item.id ? "bg-white/20" : "bg-rose-100 text-rose-800"
+                    }`}
+                  >
+                    {stats.changes}
+                  </span>
+                ) : null}
               </button>
             ))}
           </section>
 
-          {!reviewer ? (
+          {!currentMember ? (
             <EmptyState
-              title="No reviewer available"
-              body="Onboard a PMR doctor or duty doctor first. Submitted staff reports will then appear here, grouped by patient."
+              title="No team profile"
+              body="Your account is not linked to an approved team member. Ask an Admin to onboard you in Team onboarding."
             />
           ) : scopedReports.length === 0 ? (
             <EmptyState
-              title="No submitted reports yet"
+              title={selectedMember ? "No reports from this member yet" : "No submitted reports yet"}
               body={
-                reviewer.role === "pmr"
-                  ? "Health care staff reports will appear here, grouped by patient, once they are submitted."
-                  : `No reports from staff who report to ${reviewer.fullName} yet.`
+                selectedMember
+                  ? `${selectedMember.fullName} has not submitted any treatment reports yet.`
+                  : currentMember.role === "staff"
+                    ? "Your submitted treatment reports will appear here once you submit them."
+                    : currentMember.role === "supervisor"
+                      ? "Reports from you and staff assigned to you will appear here once they are submitted."
+                      : "Submitted team reports will appear here, grouped by patient."
               }
             />
           ) : groups.length === 0 ? (
@@ -378,7 +488,11 @@ export default function DashboardPage() {
                         <li key={report.id}>
                           <ReportReviewCard
                             report={report}
-                            reviewer={reviewer}
+                            reviewer={currentMember}
+                            canReview={canReviewReport(report)}
+                            isOwnReport={
+                              currentMember ? isAuthoredBy(report.staffId, currentMember) : false
+                            }
                             onReviewed={handleReviewed}
                           />
                         </li>
@@ -454,17 +568,32 @@ function EmptyState({ title, body }: { title: string; body: string }) {
 function ReportReviewCard({
   report,
   reviewer,
+  canReview,
+  isOwnReport,
   onReviewed,
 }: {
   report: StaffReport;
-  reviewer: TeamMember;
+  reviewer: TeamMember | null;
+  canReview: boolean;
+  isOwnReport: boolean;
   onReviewed: (report: StaffReport) => void;
 }) {
   const [reviewing, setReviewing] = useState(false);
   const [note, setNote] = useState(report.reviewNote);
   const [error, setError] = useState("");
+  const [ackNote, setAckNote] = useState("");
+  const [ackError, setAckError] = useState("");
+  const [acknowledging, setAcknowledging] = useState(false);
+  const [editingReport, setEditingReport] = useState(false);
+  const [editedText, setEditedText] = useState(report.correctedText);
+  const [editedAttachments, setEditedAttachments] = useState<MediaAttachment[]>(report.attachments);
+  const [editError, setEditError] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const pending = report.reviewStatus === "pending";
+  const acknowledgedChange =
+    report.reviewStatus === "changes_requested" && Boolean(report.acknowledgedAt);
+  const canDecideAgain = pending || acknowledgedChange;
 
   function openReview() {
     setNote(report.reviewNote);
@@ -478,14 +607,18 @@ function ReportReviewCard({
     setReviewing(false);
   }
 
-  function decide(status: "approved" | "changes_requested") {
+  async function decide(status: "approved" | "changes_requested") {
+    if (!reviewer) {
+      setError("You are not allowed to review this report.");
+      return;
+    }
     const trimmed = note.trim();
     if (status === "changes_requested" && !trimmed) {
       setError("Add a note explaining what the staff member needs to change.");
       return;
     }
 
-    const updated = reviewStaffReport(report.id, {
+    const updated = await reviewStaffReport(report.id, {
       reviewStatus: status,
       reviewerId: reviewer.id,
       reviewerName: reviewer.fullName,
@@ -499,6 +632,59 @@ function ReportReviewCard({
     setNote(trimmed);
     setError("");
     setReviewing(false);
+    onReviewed(updated);
+  }
+
+  async function submitAcknowledgement() {
+    const trimmed = ackNote.trim();
+    if (!trimmed) {
+      setAckError("Add a note before acknowledging the change request.");
+      return;
+    }
+    setAcknowledging(true);
+    const updated = await acknowledgeStaffReport(report.id, trimmed);
+    setAcknowledging(false);
+    if (!updated) {
+      setAckError("Could not save your acknowledgement. Please try again.");
+      return;
+    }
+    setAckNote("");
+    setAckError("");
+    onReviewed(updated);
+  }
+
+  function openEdit() {
+    setEditedText(report.correctedText);
+    setEditedAttachments(report.attachments);
+    setEditError("");
+    setEditingReport(true);
+  }
+
+  async function saveEdit() {
+    const text = editedText.trim();
+    if (!text && editedAttachments.length === 0) {
+      setEditError("Add a treatment note or attach a picture, video or audio file.");
+      return;
+    }
+    setSavingEdit(true);
+    const updated = await updateStaffReport(report.id, {
+      correctedText: text,
+      attachments: editedAttachments,
+      reviewStatus: "pending",
+      reviewedBy: null,
+      reviewedByName: null,
+      reviewedAt: null,
+      reviewNote: "",
+      acknowledgementNote: "",
+      acknowledgedAt: null,
+    });
+    setSavingEdit(false);
+    if (!updated) {
+      setEditError("Could not save your changes. Please try again.");
+      return;
+    }
+    setEditingReport(false);
+    setEditError("");
     onReviewed(updated);
   }
 
@@ -519,9 +705,15 @@ function ReportReviewCard({
         </span>
       </div>
 
-      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
-        {report.correctedText}
-      </p>
+      {report.correctedText ? (
+        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+          {report.correctedText}
+        </p>
+      ) : null}
+
+      {report.attachments.length > 0 ? (
+        <ReportAttachments attachments={report.attachments} />
+      ) : null}
 
       {report.reviewedAt ? (
         <p className="mt-2 text-xs text-muted">
@@ -542,82 +734,228 @@ function ReportReviewCard({
         </p>
       ) : null}
 
+      {report.reviewStatus === "changes_requested" && isOwnReport ? (
+        <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50/70 p-3">
+          <p className="text-xs font-semibold text-rose-900">Change requested — action needed</p>
+          <p className="mt-1 text-xs leading-5 text-rose-800">
+            {report.reviewedByName || "The reviewer"} asked for changes
+            {report.reviewedAt ? ` on ${new Date(report.reviewedAt).toLocaleString()}` : ""}. Read
+            the review note above, update the report if needed, then acknowledge with your notes.
+          </p>
+
+          {report.acknowledgedAt ? (
+            <div className="mt-2 rounded-lg bg-white px-2.5 py-2 text-xs text-slate-700">
+              <p className="font-semibold text-emerald-700">
+                Acknowledged {new Date(report.acknowledgedAt).toLocaleString()}
+              </p>
+              <p className="mt-0.5 whitespace-pre-wrap">{report.acknowledgementNote}</p>
+            </div>
+          ) : (
+            <div className="mt-2">
+              <label
+                htmlFor={`ack-note-${report.id}`}
+                className="mb-1.5 block text-xs font-medium text-slate-700"
+              >
+                Your acknowledgement note
+              </label>
+              <textarea
+                id={`ack-note-${report.id}`}
+                value={ackNote}
+                onChange={(event) => setAckNote(event.target.value)}
+                rows={2}
+                placeholder="e.g. Noted — I will add the pain score and resubmit."
+                className="w-full rounded-lg border border-rose-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-rose-200 transition focus:border-rose-400 focus:ring-4"
+              />
+              {ackError ? (
+                <p className="mt-1 text-xs text-danger" role="alert">
+                  {ackError}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={submitAcknowledgement}
+                disabled={acknowledging}
+                className="mt-2 rounded-lg bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {acknowledging ? "Saving..." : "Acknowledge"}
+              </button>
+            </div>
+          )}
+
+          <div className="mt-3 border-t border-rose-200 pt-3">
+            <button
+              type="button"
+              onClick={editingReport ? () => setEditingReport(false) : openEdit}
+              className="rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+            >
+              {editingReport ? "Cancel editing" : "Edit care record & add media"}
+            </button>
+
+            {editingReport ? (
+              <div className="mt-3 rounded-xl border border-border bg-white p-3">
+                <label
+                  htmlFor={`edit-report-${report.id}`}
+                  className="mb-1.5 block text-xs font-medium text-slate-700"
+                >
+                  Corrected treatment note
+                </label>
+                <textarea
+                  id={`edit-report-${report.id}`}
+                  value={editedText}
+                  onChange={(event) => setEditedText(event.target.value)}
+                  rows={4}
+                  placeholder="Describe the care given and what was corrected."
+                  className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
+                />
+                <div className="mt-3">
+                  <MediaAttachmentEditor
+                    attachments={editedAttachments}
+                    onChange={setEditedAttachments}
+                  />
+                </div>
+                {editError ? (
+                  <p className="mt-2 text-xs text-danger" role="alert">
+                    {editError}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={saveEdit}
+                  disabled={savingEdit}
+                  className="mt-3 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {savingEdit ? "Saving..." : "Save changes & resubmit"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {error ? (
         <p className="mt-2 rounded-lg bg-red-50 px-2.5 py-2 text-xs text-danger" role="alert">
           {error}
         </p>
       ) : null}
 
-      {reviewing ? (
-        <div className="mt-3 rounded-xl border border-border bg-slate-50 p-3">
-          <label
-            htmlFor={`review-note-${report.id}`}
-            className="mb-1.5 block text-xs font-medium text-slate-700"
-          >
-            Review note (required when requesting changes)
-          </label>
-          <textarea
-            id={`review-note-${report.id}`}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            rows={2}
-            placeholder="e.g. Please add the patient's pain score after the session."
-            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
-          />
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => decide("approved")}
-              className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-strong"
+      {canReview ? (
+        reviewing ? (
+          <div className="mt-3 rounded-xl border border-border bg-slate-50 p-3">
+            <label
+              htmlFor={`review-note-${report.id}`}
+              className="mb-1.5 block text-xs font-medium text-slate-700"
             >
-              Approve
-            </button>
-            <button
-              type="button"
-              onClick={() => decide("changes_requested")}
-              className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
-            >
-              Request changes
-            </button>
-            <button
-              type="button"
-              onClick={cancelReview}
-              className="rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {pending ? (
-            <>
+              Review note (required when requesting changes)
+            </label>
+            <textarea
+              id={`review-note-${report.id}`}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              rows={2}
+              placeholder="e.g. Please add the patient's pain score after the session."
+              className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => decide("changes_requested")}
+                className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-strong"
+              >
+                Request changes
+              </button>
               <button
                 type="button"
                 onClick={() => decide("approved")}
-                className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-strong"
+                className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
               >
                 Approve
               </button>
               <button
                 type="button"
-                onClick={openReview}
-                className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                onClick={cancelReview}
+                className="rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100"
               >
-                Request changes
+                Cancel
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={openReview}
-              className="rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
-            >
-              Review again
-            </button>
-          )}
-        </div>
-      )}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {canDecideAgain ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => decide("approved")}
+                  className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-strong"
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={openReview}
+                  className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                >
+                  Request changes
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={openReview}
+                className="rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+              >
+                Review again
+              </button>
+            )}
+          </div>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+function ReportAttachments({ attachments }: { attachments: MediaAttachment[] }) {
+  return (
+    <div className="mt-2">
+      <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Assessment media
+      </p>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {attachments.map((attachment) => (
+          <li
+            key={attachment.id}
+            className="overflow-hidden rounded-xl border border-border bg-slate-50"
+          >
+            {attachment.kind === "image" ? (
+              <a href={attachment.url} target="_blank" rel="noreferrer">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={attachment.url}
+                  alt={attachment.name}
+                  className="max-h-56 w-full object-contain"
+                />
+              </a>
+            ) : attachment.kind === "video" ? (
+              <video
+                controls
+                preload="metadata"
+                src={attachment.url}
+                className="max-h-56 w-full bg-black"
+              >
+                Your browser does not support video playback.
+              </video>
+            ) : (
+              <audio controls preload="metadata" src={attachment.url} className="w-full px-2 py-2">
+                Your browser does not support audio playback.
+              </audio>
+            )}
+            <div className="flex items-center justify-between gap-2 px-2 py-1 text-[11px] text-muted">
+              <span className="truncate">{attachment.name}</span>
+              <span className="shrink-0">{formatBytes(attachment.size)}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

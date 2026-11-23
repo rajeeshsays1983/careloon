@@ -12,6 +12,10 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  // Bundled JSON files seed the Blob store on the first deployment.
+  outputFileTracingIncludes: {
+    "/*": ["./data/*.json"],
+  },
   turbopack: {
     rules: {
       "*.css": {

@@ -4,18 +4,25 @@ import Link from "next/link";
 import { FormEvent, useMemo, useState, useSyncExternalStore } from "react";
 import { ApprovalBadge } from "@/components/ApprovalBadge";
 import { AuthGuard } from "@/components/AuthGuard";
-import { PmrApprovalPanel, type ApprovalQueueItem } from "@/components/PmrApprovalPanel";
+import { PmrApprovalPanel, type ApprovalAssignment, type ApprovalQueueItem } from "@/components/PmrApprovalPanel";
 import { SignOutButton } from "@/components/SignOutButton";
 import type { ApprovalDecision } from "@/lib/approvals";
 import {
   getPatients,
+  getPatientsServerSnapshot,
   getStoredUser,
   removePatient,
   reviewPatient,
   savePatient,
+  subscribeToPatients,
   type Patient,
 } from "@/lib/auth";
-import { getTeamMembers, type TeamMember } from "@/lib/team";
+import {
+  getTeamMembers,
+  getTeamMembersServerSnapshot,
+  subscribeToTeamMembers,
+  type TeamMember,
+} from "@/lib/team";
 
 function subscribe() {
   return () => {};
@@ -55,12 +62,50 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const mounted = useSyncExternalStore(subscribe, () => true, () => false);
   const user = useMemo(() => (mounted ? getStoredUser() : null), [mounted]);
-  const members = useMemo(() => (mounted ? getTeamMembers() : []), [mounted]);
-  const pmrs = useMemo(
-    () => members.filter((member) => member.role === "pmr" && member.approvalStatus === "approved"),
+  const members = useSyncExternalStore(
+    subscribeToTeamMembers,
+    getTeamMembers,
+    getTeamMembersServerSnapshot,
+  );
+  const approvers = useMemo(
+    () =>
+      members.filter(
+        (member) =>
+          (member.role === "admin" || member.role === "manager") &&
+          member.approvalStatus === "approved",
+      ),
     [members],
   );
-  const storedPatients = useMemo(() => (mounted ? getPatients() : []), [mounted]);
+  const teamDoctorIds = useMemo(
+    () =>
+      new Set(
+        members
+          .filter(
+            (member) =>
+              member.role === "supervisor" &&
+              member.approvalStatus === "approved" &&
+              member.inTeam,
+          )
+          .map((member) => member.id),
+      ),
+    [members],
+  );
+  const assignableMembers = useMemo(
+    () =>
+      members.filter(
+        (member) =>
+          member.approvalStatus === "approved" &&
+          ((member.role === "supervisor" && member.inTeam) ||
+            (member.role === "staff" &&
+              Boolean(member.reportsTo && teamDoctorIds.has(member.reportsTo)))),
+      ),
+    [members, teamDoctorIds],
+  );
+  const storedPatients = useSyncExternalStore(
+    subscribeToPatients,
+    getPatients,
+    getPatientsServerSnapshot,
+  );
   const patients = useMemo(() => {
     const byId = new Map<string, Patient>();
     for (const patient of [...savedPatients, ...storedPatients]) byId.set(patient.id, patient);
@@ -133,7 +178,7 @@ export default function OnboardingPage() {
     }
     setSaving(true);
     try {
-      const saved = savePatient({
+      const saved = await savePatient({
         fullName: form.fullName.trim(),
         dateOfBirth: form.dateOfBirth,
         gender: form.gender,
@@ -146,7 +191,7 @@ export default function OnboardingPage() {
       });
       setSavedPatients((prev) => [saved, ...prev]);
       setForm(initialForm);
-      setSuccess(`${saved.fullName} has been onboarded and is awaiting PMR approval.`);
+      setSuccess(`${saved.fullName} has been onboarded and is awaiting approval.`);
     } catch {
       setError("Could not save patient. Please try again.");
     } finally {
@@ -154,17 +199,20 @@ export default function OnboardingPage() {
     }
   }
 
-  function handlePatientReview(
+  async function handlePatientReview(
     id: string,
     decision: ApprovalDecision,
     reviewer: TeamMember,
     note: string,
+    assignment?: ApprovalAssignment,
   ) {
-    const updated = reviewPatient(id, {
+    const updated = await reviewPatient(id, {
       approvalStatus: decision,
       reviewerId: reviewer.id,
       reviewerName: reviewer.fullName,
       note,
+      careProviderId: assignment?.id ?? null,
+      careProviderName: assignment?.name ?? "",
     });
     if (!updated) {
       setError("Could not save the approval decision. Please try again.");
@@ -174,17 +222,17 @@ export default function OnboardingPage() {
     setPatientOverrides((prev) => ({ ...prev, [updated.id]: updated }));
     setSuccess(
       decision === "approved"
-        ? `${updated.fullName} has been verified and approved.`
-        : `${updated.fullName} was rejected. The PMR note explains what to correct.`,
+        ? `${updated.fullName} has been verified and approved${updated.careProviderName ? ` and assigned to ${updated.careProviderName}` : ""}.`
+        : `${updated.fullName} was rejected. The review note explains what to correct.`,
     );
   }
 
-  function handleRemovePatient(id: string) {
+  async function handleRemovePatient(id: string) {
     const patient = patients.find((item) => item.id === id);
     if (!patient) return;
     if (!window.confirm(`Remove ${patient.fullName} from patient onboarding?`)) return;
 
-    removePatient(id);
+    await removePatient(id);
     setDeletedPatientIds((prev) => new Set([...prev, id]));
     setError("");
     setSuccess(`${patient.fullName} removed.`);
@@ -203,18 +251,24 @@ export default function OnboardingPage() {
               </p>
             </div>
             <SignOutButton className="justify-self-end sm:col-start-3 sm:row-start-1" />
-            <nav className="col-span-2 row-start-2 flex w-full flex-nowrap items-center gap-1.5 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:w-auto sm:gap-2">
+            <nav className="col-span-2 row-start-2 flex w-full flex-wrap items-center gap-1.5 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:w-auto sm:justify-end sm:gap-2">
+              <Link
+                href="/chat"
+                className="shrink-0 whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
+              >
+                Treatment
+              </Link>
               <Link
                 href="/dashboard"
-                className="whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
+                className="shrink-0 whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
               >
-                Review dashboard
+                Dashboard
               </Link>
               <Link
                 href="/team-onboarding"
-                className="whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
+                className="shrink-0 whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
               >
-                Team onboarding
+                Team
               </Link>
             </nav>
           </header>
@@ -283,13 +337,14 @@ export default function OnboardingPage() {
 
             <div className="space-y-6">
               <PmrApprovalPanel
-                title="PMR approval queue · Patients"
-                description="Newly onboarded patients must be verified by the PMR doctor before care reports can be recorded for them."
-                emptyMessage="No patients are waiting for PMR approval."
+                title="Approval queue · Patients"
+                description="Newly onboarded patients must be verified by an Admin or PMR Doctor and assigned a Duty Doctor or health care staff member before care reports can be recorded."
+                emptyMessage="No patients are waiting for approval."
                 items={patientApprovalItems}
-                pmrDoctors={pmrs}
+                approvers={approvers}
                 onReview={handlePatientReview}
                 onRemove={handleRemovePatient}
+                assignableMembers={assignableMembers}
               />
 
               <section>
@@ -299,7 +354,8 @@ export default function OnboardingPage() {
                 </div>
                 {approvedPatients.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-border bg-white px-4 py-6 text-center text-sm text-muted">
-                    No approved patients yet. Patients appear here after the PMR doctor verifies them.
+                    No approved patients yet. Patients appear here after an Admin or PMR Doctor verifies
+                    them.
                   </div>
                 ) : (
                   <ul className="space-y-3">
@@ -317,6 +373,10 @@ export default function OnboardingPage() {
                             </span>
                           </div>
                         </div>
+                        <div className="mt-3 rounded-xl bg-teal-50 px-3 py-2 text-xs text-teal-900">
+                          <span className="font-semibold">Assigned care provider:</span>{" "}
+                          {p.careProviderName || "Not assigned"}
+                        </div>
                         <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-600">
                           <p><span className="text-muted">DOB:</span> {p.dateOfBirth || "-"}</p>
                           <p><span className="text-muted">Phone:</span> {p.phone || "-"}</p>
@@ -324,7 +384,7 @@ export default function OnboardingPage() {
                         </div>
                         {p.reviewedAt ? (
                           <p className="mt-2 text-xs text-muted">
-                            Verified by {p.reviewedByName || "PMR doctor"} · {new Date(p.reviewedAt).toLocaleString()}
+                            Verified by {p.reviewedByName || "approver"} · {new Date(p.reviewedAt).toLocaleString()}
                           </p>
                         ) : null}
                       </li>

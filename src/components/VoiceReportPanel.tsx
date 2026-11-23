@@ -1,12 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { getPatients } from "@/lib/auth";
+import { PatientPicker } from "@/components/PatientPicker";
 import {
-  getReportsForStaff,
+  getPatients,
+  getPatientsServerSnapshot,
+  subscribeToPatients,
+} from "@/lib/auth";
+import {
+  getStaffReportsServerSnapshot,
+  getStaffReportsSnapshot,
   REVIEW_STATUS_LABELS,
   saveStaffReport,
+  subscribeToStaffReports,
   updateStaffReport,
   type StaffReport,
 } from "@/lib/reports";
@@ -43,10 +49,6 @@ type SpeechWindow = Window & {
   webkitSpeechRecognition?: SpeechRecognitionConstructor;
 };
 
-function subscribe() {
-  return () => {};
-}
-
 function today(): string {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
@@ -72,7 +74,6 @@ export function VoiceReportPanel({
   staff: TeamMember;
   onClose: () => void;
 }) {
-  const mounted = useSyncExternalStore(subscribe, () => true, () => false);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const [date, setDate] = useState(today);
@@ -87,13 +88,24 @@ export function VoiceReportPanel({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const allPatients = useSyncExternalStore(
+    subscribeToPatients,
+    getPatients,
+    getPatientsServerSnapshot,
+  );
   const patients = useMemo(
-    () => (mounted ? getPatients().filter((patient) => patient.approvalStatus === "approved") : []),
-    [mounted],
+    () => allPatients.filter((patient) => patient.approvalStatus === "approved"),
+    [allPatients],
+  );
+  const selectedPatient = patients.find((patient) => patient.id === patientId) ?? null;
+  const allReports = useSyncExternalStore(
+    subscribeToStaffReports,
+    getStaffReportsSnapshot,
+    getStaffReportsServerSnapshot,
   );
   const storedReports = useMemo(
-    () => (mounted ? getReportsForStaff(staff.id) : []),
-    [mounted, staff.id],
+    () => allReports.filter((report) => report.staffId === staff.id),
+    [allReports, staff.id],
   );
   const reports = useMemo(() => {
     const byId = new Map<string, StaffReport>();
@@ -117,6 +129,12 @@ export function VoiceReportPanel({
     setInterim("");
   }
 
+  function handlePatientChange(nextPatientId: string) {
+    stopListening();
+    setPatientId(nextPatientId);
+    setError("");
+  }
+
   function handleClose() {
     stopListening();
     onClose();
@@ -125,6 +143,11 @@ export function VoiceReportPanel({
   function startListening() {
     setError("");
     setSuccess("");
+
+    if (!selectedPatient) {
+      setError("Select the patient receiving treatment before using the microphone.");
+      return;
+    }
 
     const speechWindow = window as SpeechWindow;
     const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
@@ -205,7 +228,7 @@ export function VoiceReportPanel({
     setSuccess("");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const corrected = text.trim();
 
@@ -233,7 +256,7 @@ export function VoiceReportPanel({
 
     try {
       if (editingId) {
-        const updated = updateStaffReport(editingId, {
+        const updated = await updateStaffReport(editingId, {
           date,
           patientId: patient.id,
           patientName: patient.fullName,
@@ -251,7 +274,7 @@ export function VoiceReportPanel({
         setOverrides((prev) => ({ ...prev, [updated.id]: updated }));
         setSuccess("Corrected report updated.");
       } else {
-        const saved = saveStaffReport({
+        const saved = await saveStaffReport({
           staffId: staff.id,
           staffName: staff.fullName,
           patientId: patient.id,
@@ -259,6 +282,7 @@ export function VoiceReportPanel({
           date,
           generatedText: raw,
           correctedText: corrected,
+          attachments: [],
           status: "submitted",
           reviewStatus: "pending",
           reviewedBy: null,
@@ -303,37 +327,12 @@ export function VoiceReportPanel({
       </div>
 
       <form onSubmit={handleSubmit} className="mt-3 space-y-3">
-        <div>
-          <label
-            htmlFor={`report-patient-${staff.id}`}
-            className="mb-1.5 block text-xs font-medium text-slate-700"
-          >
-            Patient
-          </label>
-          <select
-            id={`report-patient-${staff.id}`}
-            value={patientId}
-            onChange={(event) => setPatientId(event.target.value)}
-            className="w-full rounded-xl border border-border bg-white px-3 py-2 text-sm text-slate-900 outline-none ring-brand/20 transition focus:border-brand focus:ring-4"
-          >
-            <option value="">Select patient</option>
-            {patients.map((patient) => (
-              <option key={patient.id} value={patient.id}>
-                {patient.fullName}
-                {patient.diagnosis ? ` · ${patient.diagnosis}` : ""}
-              </option>
-            ))}
-          </select>
-          {patients.length === 0 ? (
-            <p className="mt-1.5 text-xs text-danger">
-              No approved patients yet.{" "}
-              <Link href="/onboarding" className="font-medium underline">
-                Add a patient
-              </Link>{" "}
-              and get PMR approval first.
-            </p>
-          ) : null}
-        </div>
+        <PatientPicker
+          idPrefix={`report-${staff.id}`}
+          patients={patients}
+          value={patientId}
+          onChange={handlePatientChange}
+        />
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
           <div>
@@ -354,7 +353,15 @@ export function VoiceReportPanel({
           <button
             type="button"
             onClick={listening ? stopListening : startListening}
-            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+            disabled={!selectedPatient}
+            aria-label={
+              selectedPatient
+                ? listening
+                  ? "Stop recording"
+                  : "Start voice report"
+                : "Select a patient to enable the microphone"
+            }
+            className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
               listening
                 ? "bg-red-600 text-white hover:bg-red-700"
                 : "bg-brand text-white hover:bg-brand-strong"
@@ -365,9 +372,11 @@ export function VoiceReportPanel({
         </div>
 
         <p className="text-xs text-muted">
-          {listening
-            ? "Listening... speak clearly, then stop recording."
-            : "Uses your browser's microphone. You can also type the report directly."}
+          {!selectedPatient
+            ? "Select the patient receiving treatment from the search list to enable the microphone. You can also type the report directly."
+            : listening
+              ? "Listening... speak clearly, then stop recording."
+              : "Uses your browser's microphone. You can also type the report directly."}
         </p>
 
         {interim ? (

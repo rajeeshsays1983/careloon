@@ -1,34 +1,118 @@
-import { parseApprovalStatus, type ApprovalDecision, type ApprovalStatus } from "@/lib/approvals";
+import {
+  addTeamMemberToTeamAction,
+  assignTeamMemberToDutyDoctorAction,
+  createTeamMemberAction,
+  recommendTeamMemberAction,
+  removeTeamMemberAction,
+  restoreTeamMemberAction,
+  reviewTeamMemberAction,
+  unassignTeamMemberFromDutyDoctorAction,
+} from "@/app/actions";
+import type { ApprovalDecision, ApprovalStatus } from "@/lib/approvals";
+import {
+  getDataServerSnapshot,
+  getDataSnapshot,
+  replaceData,
+  subscribeData,
+} from "@/lib/client-store";
 
-export type TeamRole = "pmr" | "duty_doctor" | "staff";
+export type TeamRole = "admin" | "manager" | "supervisor" | "staff";
 
 export type TeamMember = {
   id: string;
   role: TeamRole;
   fullName: string;
   email: string;
+  username?: string;
   phone: string;
   registration: string;
   specialty: string;
   reportsTo: string | null;
+  inTeam: boolean;
+  hasBeenAssigned: boolean;
   approvalStatus: ApprovalStatus;
   reviewedBy: string | null;
   reviewedByName: string | null;
   reviewedAt: string | null;
   reviewNote: string;
+  recommendedBy: string | null;
+  recommendedByName: string | null;
+  recommendedAt: string | null;
+  recommendationNote: string;
   createdAt: string;
 };
 
 export type NewTeamMember = Omit<
   TeamMember,
-  "id" | "createdAt" | "approvalStatus" | "reviewedBy" | "reviewedByName" | "reviewedAt" | "reviewNote"
+  | "id"
+  | "createdAt"
+  | "inTeam"
+  | "hasBeenAssigned"
+  | "approvalStatus"
+  | "reviewedBy"
+  | "reviewedByName"
+  | "reviewedAt"
+  | "reviewNote"
+  | "recommendedBy"
+  | "recommendedByName"
+  | "recommendedAt"
+  | "recommendationNote"
 >;
 
 export const ROLE_LABELS: Record<TeamRole, string> = {
-  pmr: "PMR Doctor (Admin)",
-  duty_doctor: "Duty Doctor",
+  admin: "Admin",
+  manager: "PMR Doctor",
+  supervisor: "Duty Doctor",
   staff: "Health Care Staff",
 };
+
+// Report/message author IDs used to be stored as `user:<email>` for signed-in
+// leaders. Match those legacy IDs to the team member so their own activity is
+// still visible and self-review stays blocked.
+export function isAuthoredBy(
+  authorId: string | null | undefined,
+  member: TeamMember,
+): boolean {
+  if (!authorId) return false;
+  const id = authorId.trim().toLowerCase();
+  return (
+    id === member.id.toLowerCase() ||
+    id === `user:${member.email.trim().toLowerCase()}`
+  );
+}
+
+// Members whose treatment activity the signed-in user is allowed to see.
+export function getVisibleMembers(
+  members: TeamMember[],
+  currentMember: TeamMember | null,
+): TeamMember[] {
+  if (!currentMember) return [];
+  if (currentMember.role === "admin" || currentMember.role === "manager") {
+    // Admin manages accounts, not care activity. Neither Admin nor the PMR
+    // Doctor sees Admin activity in the dashboard or Treatment; both see only
+    // the approved care team (staff and Duty Doctors).
+    return members.filter(
+      (member) => member.approvalStatus === "approved" && member.role !== "admin",
+    );
+  }
+  if (currentMember.role === "supervisor") {
+    const teamStaff = members.filter(
+      (member) =>
+        member.role === "staff" &&
+        member.approvalStatus === "approved" &&
+        member.reportsTo === currentMember.id,
+    );
+    return [currentMember, ...teamStaff];
+  }
+  return [currentMember];
+}
+
+// Selection lists show a care worker's actual designation instead of the
+// generic "Health Care Staff" role label.
+export function memberDesignation(member: TeamMember): string {
+  if (member.role === "staff") return member.specialty.trim() || "Care staff";
+  return ROLE_LABELS[member.role];
+}
 
 export const STAFF_SPECIALTIES = [
   "Physiotherapist",
@@ -42,72 +126,27 @@ export const STAFF_SPECIALTIES = [
   "Other",
 ] as const;
 
-const TEAM_KEY = "careloon_team";
-
-function parseMember(value: unknown): TeamMember | null {
-  if (typeof value !== "object" || value === null) return null;
-  const member = value as Record<string, unknown>;
-
-  if (
-    typeof member.id !== "string" ||
-    (member.role !== "pmr" && member.role !== "duty_doctor" && member.role !== "staff") ||
-    typeof member.fullName !== "string"
-  ) {
-    return null;
-  }
-
-  return {
-    id: member.id,
-    role: member.role,
-    fullName: member.fullName,
-    email: typeof member.email === "string" ? member.email : "",
-    phone: typeof member.phone === "string" ? member.phone : "",
-    registration: typeof member.registration === "string" ? member.registration : "",
-    specialty: typeof member.specialty === "string" ? member.specialty : "",
-    reportsTo: typeof member.reportsTo === "string" ? member.reportsTo : null,
-    approvalStatus:
-      member.role === "pmr" ? "approved" : parseApprovalStatus(member.approvalStatus),
-    reviewedBy: typeof member.reviewedBy === "string" ? member.reviewedBy : null,
-    reviewedByName: typeof member.reviewedByName === "string" ? member.reviewedByName : null,
-    reviewedAt: typeof member.reviewedAt === "string" ? member.reviewedAt : null,
-    reviewNote: typeof member.reviewNote === "string" ? member.reviewNote : "",
-    createdAt: typeof member.createdAt === "string" ? member.createdAt : new Date().toISOString(),
-  };
-}
+// Team members live in data/team-members.json. The client store mirrors the server data.
 
 export function getTeamMembers(): TeamMember[] {
-  if (typeof window === "undefined") return [];
-  const raw = window.localStorage.getItem(TEAM_KEY);
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(parseMember).filter((member): member is TeamMember => member !== null);
-  } catch {
-    return [];
-  }
+  return getDataSnapshot().teamMembers;
 }
 
-export function saveTeamMember(input: NewTeamMember): TeamMember {
-  const members = getTeamMembers();
-  const member: TeamMember = {
-    ...input,
-    id:
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : String(Date.now()),
-    approvalStatus: input.role === "pmr" ? "approved" : "pending",
-    reviewedBy: null,
-    reviewedByName: null,
-    reviewedAt: null,
-    reviewNote: "",
-    createdAt: new Date().toISOString(),
-  };
-  window.localStorage.setItem(TEAM_KEY, JSON.stringify([member, ...members]));
-  return member;
+export function subscribeToTeamMembers(listener: () => void): () => void {
+  return subscribeData(listener);
 }
 
-export function reviewTeamMember(
+export function getTeamMembersServerSnapshot(): TeamMember[] {
+  return getDataServerSnapshot().teamMembers;
+}
+
+export async function saveTeamMember(input: NewTeamMember): Promise<TeamMember> {
+  const created = await createTeamMemberAction(input);
+  replaceData("teamMembers", [created, ...getTeamMembers()]);
+  return created;
+}
+
+export async function reviewTeamMember(
   id: string,
   review: {
     approvalStatus: ApprovalDecision;
@@ -115,22 +154,87 @@ export function reviewTeamMember(
     reviewerName: string;
     note: string;
   },
-): TeamMember | null {
-  const members = getTeamMembers();
-  const index = members.findIndex((member) => member.id === id);
-  if (index === -1) return null;
-
-  const updated: TeamMember = {
-    ...members[index],
-    approvalStatus: members[index].role === "pmr" ? "approved" : review.approvalStatus,
-    reviewedBy: review.reviewerId,
-    reviewedByName: review.reviewerName,
-    reviewedAt: new Date().toISOString(),
-    reviewNote: review.note.trim(),
-  };
-  members[index] = updated;
-  window.localStorage.setItem(TEAM_KEY, JSON.stringify(members));
+): Promise<TeamMember | null> {
+  const updated = await reviewTeamMemberAction(id, review);
+  if (updated) {
+    replaceData(
+      "teamMembers",
+      getTeamMembers().map((member) => (member.id === updated.id ? updated : member)),
+    );
+  }
   return updated;
+}
+
+export async function recommendTeamMember(
+  id: string,
+  recommendation: { recommenderId: string; recommenderName: string; note: string },
+): Promise<TeamMember | null> {
+  const updated = await recommendTeamMemberAction(id, recommendation);
+  if (updated) {
+    replaceData(
+      "teamMembers",
+      getTeamMembers().map((member) => (member.id === updated.id ? updated : member)),
+    );
+  }
+  return updated;
+}
+
+export async function assignTeamMemberToDutyDoctor(
+  id: string,
+  dutyDoctorId: string,
+): Promise<TeamMember | null> {
+  const updated = await assignTeamMemberToDutyDoctorAction(id, dutyDoctorId);
+  if (updated) {
+    replaceData(
+      "teamMembers",
+      getTeamMembers().map((member) => (member.id === updated.id ? updated : member)),
+    );
+  }
+  return updated;
+}
+
+export async function addTeamMemberToTeam(id: string): Promise<TeamMember | null> {
+  const updated = await addTeamMemberToTeamAction(id);
+  if (updated) {
+    replaceData(
+      "teamMembers",
+      getTeamMembers().map((member) => (member.id === updated.id ? updated : member)),
+    );
+  }
+  return updated;
+}
+
+export async function unassignTeamMemberFromDutyDoctor(
+  id: string,
+): Promise<TeamMember | null> {
+  const updated = await unassignTeamMemberFromDutyDoctorAction(id);
+  if (updated) {
+    replaceData(
+      "teamMembers",
+      getTeamMembers().map((member) => (member.id === updated.id ? updated : member)),
+    );
+  }
+  return updated;
+}
+
+export async function restoreTeamMember(id: string): Promise<TeamMember | null> {
+  const updated = await restoreTeamMemberAction(id);
+  if (updated) {
+    replaceData(
+      "teamMembers",
+      getTeamMembers().map((member) => (member.id === updated.id ? updated : member)),
+    );
+  }
+  return updated;
+}
+
+export async function removeTeamMember(id: string): Promise<string[]> {
+  const removedIds = await removeTeamMemberAction(id);
+  replaceData(
+    "teamMembers",
+    getTeamMembers().filter((member) => !removedIds.includes(member.id)),
+  );
+  return removedIds;
 }
 
 export function getMemberAndDescendantIds(members: TeamMember[], id: string): Set<string> {
@@ -148,11 +252,4 @@ export function getMemberAndDescendantIds(members: TeamMember[], id: string): Se
   }
 
   return ids;
-}
-
-export function removeTeamMember(id: string): void {
-  const members = getTeamMembers();
-  const removedIds = getMemberAndDescendantIds(members, id);
-  const remaining = members.filter((member) => !removedIds.has(member.id));
-  window.localStorage.setItem(TEAM_KEY, JSON.stringify(remaining));
 }

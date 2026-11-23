@@ -1082,9 +1082,14 @@ function MemberRow({
     }
   }
 
+  // Buttons share the row on small screens and return to their natural width
+  // on larger ones, so the card never pushes past the viewport.
+  const actionButton =
+    "min-w-0 flex-1 rounded-lg px-2 py-1.5 text-center text-xs font-semibold sm:w-auto sm:flex-none sm:px-2.5";
+
   return (
     <div>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-medium text-white">{member.fullName}</p>
@@ -1100,20 +1105,20 @@ function MemberRow({
             <p className="text-sm font-medium text-white/85">Reg. {member.registration}</p>
           ) : null}
         </div>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        <div className="flex w-full flex-wrap items-stretch gap-2 sm:w-auto sm:justify-end sm:gap-1.5">
           {canApprove && onReview ? (
             <>
               <button
                 type="button"
                 onClick={() => submitReview("approved")}
-                className="rounded-lg bg-white px-2.5 py-1.5 text-xs font-semibold text-[#1e8285] hover:bg-white/90"
+                className={`${actionButton} bg-white text-[#1e8285] hover:bg-white/90`}
               >
                 Approve
               </button>
               <button
                 type="button"
                 onClick={openReview}
-                className="rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                className={`${actionButton} border border-rose-200 bg-white text-rose-700 hover:bg-rose-50`}
               >
                 Reject
               </button>
@@ -1123,7 +1128,7 @@ function MemberRow({
             <button
               type="button"
               onClick={openRecommendation}
-              className="rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-sky-700 hover:bg-sky-50"
+              className={`${actionButton} border border-sky-200 bg-white text-sky-700 hover:bg-sky-50`}
             >
               {member.recommendationNote ? "Edit recommendation" : "Recommend"}
             </button>
@@ -1133,7 +1138,7 @@ function MemberRow({
               type="button"
               onClick={submitTeamIn}
               disabled={saving}
-              className="rounded-lg bg-indigo-700 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"
+              className={`${actionButton} bg-indigo-700 text-white hover:bg-indigo-800 disabled:opacity-60`}
             >
               Team In
             </button>
@@ -1142,7 +1147,7 @@ function MemberRow({
             <button
               type="button"
               onClick={openAssign}
-              className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+              className={`${actionButton} border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50`}
             >
               Assign to Duty Doctor
             </button>
@@ -1152,7 +1157,7 @@ function MemberRow({
               type="button"
               onClick={submitUnassign}
               disabled={saving}
-              className="rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-60"
+              className={`${actionButton} border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-60`}
             >
               Unassign
             </button>
@@ -1162,7 +1167,7 @@ function MemberRow({
               type="button"
               onClick={submitRestore}
               disabled={saving}
-              className="rounded-lg border border-emerald-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+              className={`${actionButton} border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 disabled:opacity-60`}
             >
               Restore
             </button>
@@ -1170,7 +1175,7 @@ function MemberRow({
           <button
             type="button"
             onClick={() => onDelete(member)}
-            className="rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-red-50 hover:text-danger"
+            className={`${actionButton} border border-border bg-white font-medium text-slate-600 hover:bg-red-50 hover:text-danger`}
           >
             Remove
           </button>

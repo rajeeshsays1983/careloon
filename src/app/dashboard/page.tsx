@@ -285,44 +285,51 @@ export default function DashboardPage() {
 
   return (
     <AuthGuard>
-      <main className="min-h-screen w-full bg-slate-50 px-4 pb-10 pt-5 sm:px-6">
+      <main className="min-h-screen w-full bg-gradient-to-br from-indigo-50/70 via-slate-50 to-teal-50/60 px-4 pb-10 pt-5 sm:px-6">
         <div className="w-full">
-          <header className="mb-5 grid grid-cols-[1fr_auto] items-start gap-x-3 gap-y-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold tracking-[0.16em] text-brand">CARELOON</p>
-              <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
-                {dashboardTitle}
-              </h1>
-              <p className="mt-1 text-sm text-muted">
-                {user
-                  ? `Signed in as ${user.name}${currentMember ? ` · ${ROLE_LABELS[currentMember.role]}` : ""}`
-                  : "Patient-wise reports for your team."}
-              </p>
+          <header className="relative mb-5 overflow-hidden rounded-3xl border border-white/80 bg-white/85 p-4 shadow-lg shadow-indigo-900/5 backdrop-blur sm:p-5">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-teal-400" />
+            <div className="pointer-events-none absolute -right-12 -top-20 h-48 w-48 rounded-full bg-gradient-to-br from-indigo-200/50 to-teal-200/40 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 left-1/3 h-40 w-40 rounded-full bg-gradient-to-tr from-violet-200/40 to-sky-200/40 blur-3xl" />
+            <div className="relative grid grid-cols-[1fr_auto] items-start gap-x-3 gap-y-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+              <div className="min-w-0">
+                <p className="bg-gradient-to-r from-indigo-600 via-violet-600 to-teal-500 bg-clip-text text-xs font-bold tracking-[0.18em] text-transparent">
+                  CARELOON
+                </p>
+                <h1 className="mt-1 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 bg-clip-text text-2xl font-semibold tracking-tight text-transparent sm:text-3xl">
+                  {dashboardTitle}
+                </h1>
+                <p className="mt-1 text-sm text-muted">
+                  {user
+                    ? `Signed in as ${user.name}${currentMember ? ` · ${ROLE_LABELS[currentMember.role]}` : ""}`
+                    : "Patient-wise reports for your team."}
+                </p>
+              </div>
+              <SignOutButton className="justify-self-end sm:col-start-3 sm:row-start-1" />
+              <nav className="col-span-2 row-start-2 flex w-full flex-wrap items-center gap-1.5 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:w-auto sm:justify-end sm:gap-2">
+                <Link
+                  href="/chat"
+                  className="shrink-0 whitespace-nowrap rounded-lg border border-indigo-100 bg-white/90 px-2 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 sm:px-3 sm:py-2 sm:text-sm"
+                >
+                  Treatment
+                </Link>
+                <Link
+                  href="/onboarding"
+                  className="shrink-0 whitespace-nowrap rounded-lg border border-indigo-100 bg-white/90 px-2 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 sm:px-3 sm:py-2 sm:text-sm"
+                >
+                  Patient
+                </Link>
+                <Link
+                  href="/team-onboarding"
+                  className="shrink-0 whitespace-nowrap rounded-lg border border-indigo-100 bg-white/90 px-2 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 sm:px-3 sm:py-2 sm:text-sm"
+                >
+                  Team
+                </Link>
+              </nav>
             </div>
-            <SignOutButton className="justify-self-end sm:col-start-3 sm:row-start-1" />
-            <nav className="col-span-2 row-start-2 flex w-full flex-wrap items-center gap-1.5 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:w-auto sm:justify-end sm:gap-2">
-              <Link
-                href="/chat"
-                className="shrink-0 whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
-              >
-                Treatment
-              </Link>
-              <Link
-                href="/onboarding"
-                className="shrink-0 whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
-              >
-                Patient
-              </Link>
-              <Link
-                href="/team-onboarding"
-                className="shrink-0 whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
-              >
-                Team
-              </Link>
-            </nav>
           </header>
 
-          <section className="mb-5 rounded-2xl border border-border bg-white p-4 shadow-sm">
+          <section className="mb-5 rounded-2xl border border-white/80 bg-white/85 p-4 shadow-sm shadow-slate-900/5 backdrop-blur">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-56 flex-1">
                 <label
@@ -381,7 +388,7 @@ export default function DashboardPage() {
           </section>
 
           <section className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <StatCard label="Patients" value={stats.patients} />
+            <StatCard label="Patients" value={stats.patients} tone="indigo" />
             <StatCard label="Awaiting review" value={stats.pending} tone="amber" />
             <StatCard label="Approved" value={stats.approved} tone="emerald" />
             <StatCard label="Changes requested" value={stats.changes} tone="rose" />
@@ -394,10 +401,10 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => setFilter(item.id)}
                 aria-pressed={filter === item.id}
-                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-200 ${
                   filter === item.id
-                    ? "bg-brand text-white shadow-sm"
-                    : "border border-border bg-white text-slate-700 hover:bg-slate-100"
+                    ? "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-md shadow-indigo-500/30"
+                    : "border border-indigo-100 bg-white/90 text-slate-600 shadow-sm hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
                 }`}
               >
                 {item.label}
@@ -453,11 +460,11 @@ export default function DashboardPage() {
                 return (
                   <section
                     key={group.key}
-                    className="overflow-hidden rounded-2xl border border-border bg-white shadow-sm"
+                    className="overflow-hidden rounded-2xl border border-white/80 bg-white/90 shadow-sm shadow-slate-900/5 backdrop-blur"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-slate-50/80 px-4 py-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-indigo-100/70 bg-gradient-to-r from-indigo-50/90 via-white to-teal-50/70 px-4 py-3">
                       <div className="min-w-0">
-                        <p className="truncate text-base font-semibold text-slate-900">
+                        <p className="truncate text-base font-semibold text-indigo-950">
                           {group.name}
                         </p>
                         {group.patient ? (
@@ -512,23 +519,61 @@ export default function DashboardPage() {
 function StatCard({
   label,
   value,
-  tone = "slate",
+  tone = "indigo",
 }: {
   label: string;
   value: number;
-  tone?: "slate" | "amber" | "emerald" | "rose";
+  tone?: "indigo" | "amber" | "emerald" | "rose";
 }) {
-  const toneClass = {
-    slate: "text-slate-900",
-    amber: "text-amber-700",
-    emerald: "text-emerald-700",
-    rose: "text-rose-700",
+  const theme = {
+    indigo: {
+      surface: "from-indigo-500 via-indigo-600 to-violet-600",
+      shadow: "shadow-indigo-500/25",
+      icon: "M12 21s-7-4.5-7-10a7 7 0 1 1 14 0c0 5.5-7 10-7 10Z",
+    },
+    amber: {
+      surface: "from-amber-400 via-orange-500 to-rose-400",
+      shadow: "shadow-orange-500/25",
+      icon: "M12 7v5l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z",
+    },
+    emerald: {
+      surface: "from-emerald-400 via-teal-500 to-cyan-600",
+      shadow: "shadow-emerald-500/25",
+      icon: "m5 13 4 4L19 7",
+    },
+    rose: {
+      surface: "from-rose-400 via-pink-500 to-fuchsia-500",
+      shadow: "shadow-rose-500/25",
+      icon: "m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z",
+    },
   }[tone];
 
   return (
-    <div className="rounded-2xl border border-border bg-white px-4 py-3 shadow-sm">
-      <p className={`text-2xl font-semibold ${toneClass}`}>{value}</p>
-      <p className="mt-0.5 text-xs font-medium text-muted">{label}</p>
+    <div
+      className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${theme.surface} p-4 text-white shadow-lg ${theme.shadow} transition-transform duration-200 hover:-translate-y-0.5`}
+    >
+      <div className="pointer-events-none absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/10" />
+      <div className="pointer-events-none absolute -bottom-12 -left-6 h-24 w-24 rounded-full bg-white/10" />
+      <div className="relative flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-3xl font-bold tracking-tight drop-shadow-sm">{value}</p>
+          <p className="mt-1 text-xs font-medium text-white/85">{label}</p>
+        </div>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20 ring-1 ring-white/30 backdrop-blur-sm">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5"
+            aria-hidden="true"
+          >
+            <path d={theme.icon} />
+          </svg>
+        </span>
+      </div>
     </div>
   );
 }
@@ -558,8 +603,8 @@ function CountBadge({
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-white px-4 py-10 text-center">
-      <p className="text-sm font-medium text-slate-800">{title}</p>
+    <div className="rounded-2xl border-2 border-dashed border-indigo-200 bg-white/70 px-4 py-10 text-center backdrop-blur">
+      <p className="text-sm font-medium text-indigo-900">{title}</p>
       <p className="mx-auto mt-1 max-w-md text-sm text-muted">{body}</p>
     </div>
   );

@@ -455,33 +455,48 @@ export default function TeamOnboardingPage() {
           </header>
 
           <section className="mb-5 rounded-2xl border border-border bg-white px-4 py-4">
-            <p className="text-sm font-medium text-slate-800">Onboard in this order</p>
-            <ol className="mt-2 grid gap-1 text-sm text-muted sm:grid-cols-4">
-              <li>1. Add the Admin</li>
-              <li>2. Add PMR Doctors under the Admin</li>
-              <li>3. Add Duty Doctors under a PMR Doctor</li>
-              <li>4. Add health care staff under a Duty Doctor</li>
+            <p className="text-base font-semibold text-slate-900">Onboard in this order</p>
+            <ol className="mt-2 grid gap-2 text-sm font-medium text-slate-800 sm:grid-cols-4">
+              <li className="rounded-lg bg-slate-50 px-2.5 py-1.5">1. Add the Admin</li>
+              <li className="rounded-lg bg-slate-50 px-2.5 py-1.5">2. Add PMR Doctors under the Admin</li>
+              <li className="rounded-lg bg-slate-50 px-2.5 py-1.5">3. Add Duty Doctors under a PMR Doctor</li>
+              <li className="rounded-lg bg-slate-50 px-2.5 py-1.5">4. Add health care staff under a Duty Doctor</li>
             </ol>
-            <p className="mt-2 text-xs leading-5 text-muted">
-              PMR Doctors are on the care team by default and appear in Team as the team lead. Health
-              care staff start in Onboarding and need approval. Duty Doctors added by a PMR Doctor are
-              approved automatically and appear in Onboarded. A PMR Doctor must use Team In before
-              staff can be assigned to that Duty Doctor. Unassigned staff stay approved and wait under
-              Unassigned staff until they are reassigned.
-            </p>
+            <div className="mt-3 grid gap-2 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-sm leading-6 text-slate-800 sm:grid-cols-2">
+              <p>
+                <span className="font-bold text-indigo-700">PMR Doctors</span> are on the care team by
+                default and appear in Team as the team lead.
+              </p>
+              <p>
+                <span className="font-bold text-amber-700">Health care staff</span> start in Onboarding
+                and need approval.
+              </p>
+              <p>
+                <span className="font-bold text-emerald-700">Duty Doctors</span> added by a PMR Doctor
+                are approved automatically and appear in Onboarded.
+              </p>
+              <p>
+                <span className="font-bold text-indigo-700">Team In</span> is required before staff can
+                be assigned to that Duty Doctor.
+              </p>
+              <p className="sm:col-span-2">
+                <span className="font-bold text-rose-700">Unassigned staff</span> stay approved and wait
+                under Unassigned staff until they are reassigned.
+              </p>
+            </div>
             {canApproveMembers ? (
-              <p className="mt-2 text-xs text-emerald-800">
+              <p className="mt-3 text-sm font-medium text-emerald-900">
                 As an Admin, PMR Doctor or Duty Doctor you can approve or reject team members in the
                 Onboarding section.
               </p>
             ) : null}
             {canRecommendMembers ? (
-              <p className="mt-2 text-xs text-sky-800">
+              <p className="mt-3 text-sm font-medium text-sky-900">
                 As a Duty Doctor you can add a recommendation on care team members; the reviewer will
                 see your note.
               </p>
             ) : null}
-            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm font-medium text-slate-700">
               <span>{admins.length} admin(s)</span>
               <span>{managers.length} PMR Doctor(s)</span>
               <span>{supervisors.length} Duty Doctor(s)</span>
@@ -657,7 +672,7 @@ export default function TeamOnboardingPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                 Admin &amp; PMR Doctors
               </h2>
-              <span className="text-xs text-muted">
+              <span className="text-sm font-medium text-slate-700">
                 {admins.length + managers.length} leader(s)
               </span>
             </div>
@@ -675,7 +690,7 @@ export default function TeamOnboardingPage() {
                     </li>
                   ))}
                 </ul>
-                <p className="mt-2 text-xs text-muted">
+                <p className="mt-2 text-sm font-medium text-slate-700">
                   PMR Doctors on the care team are listed under Team as the team lead.
                 </p>
               </>
@@ -687,9 +702,11 @@ export default function TeamOnboardingPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                 Onboarding
               </h2>
-              <span className="text-xs text-muted">{onboardingQueue.length} awaiting approval</span>
+              <span className="text-sm font-medium text-slate-700">
+                {onboardingQueue.length} awaiting approval
+              </span>
             </div>
-            <p className="mb-3 text-xs leading-5 text-muted">
+            <p className="mb-3 text-sm leading-6 text-slate-700">
               PMR Doctors and health care staff awaiting verification. Approve or reject them here;
               approved members move to Onboarded. Duty Doctors are approved automatically.
             </p>
@@ -723,11 +740,11 @@ export default function TeamOnboardingPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                 Onboarded
               </h2>
-              <span className="text-xs text-muted">
+              <span className="text-sm font-medium text-slate-700">
                 {onboardedLeaders.length + onboardedStaff.length} awaiting placement
               </span>
             </div>
-            <p className="mb-3 text-xs leading-5 text-muted">
+            <p className="mb-3 text-sm leading-6 text-slate-700">
               First-time placement for approved team members. A Duty Doctor must be added with Team
               In before staff can be assigned to them. Once a staff member has been placed, they move
               to Team and never return here.
@@ -765,9 +782,9 @@ export default function TeamOnboardingPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                 Unassigned staff
               </h2>
-              <span className="text-xs text-muted">{unassignedStaff.length} awaiting reassignment</span>
+              <span className="text-sm font-medium text-slate-700">{unassignedStaff.length} awaiting reassignment</span>
             </div>
-            <p className="mb-3 text-xs leading-5 text-muted">
+            <p className="mb-3 text-sm leading-6 text-slate-700">
               Approved staff who were previously assigned and are now waiting for a new Duty Doctor.
               They keep their approval and treatment history; reassign them to any Duty Doctor in
               Team.
@@ -803,9 +820,9 @@ export default function TeamOnboardingPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                 Team
               </h2>
-              <span className="text-xs text-muted">{teamMemberCount} member(s)</span>
+              <span className="text-sm font-medium text-slate-700">{teamMemberCount} member(s)</span>
             </div>
-            <p className="mb-3 text-xs leading-5 text-muted">
+            <p className="mb-3 text-sm leading-6 text-slate-700">
               Assigned care team. The PMR Doctor leads the team, and health care staff are grouped
               under Duty Doctors who are in Team.
             </p>
@@ -834,7 +851,7 @@ export default function TeamOnboardingPage() {
                   >
                     <MemberRow member={supervisor} onDelete={handleDelete} />
                     {careStaff.length === 0 ? (
-                      <p className="mt-2 pl-4 text-xs text-muted">No health care staff yet.</p>
+                      <p className="mt-2 pl-4 text-sm font-medium text-slate-700">No health care staff yet.</p>
                     ) : (
                       <ul className="mt-3 space-y-2 border-l-2 border-brand-soft pl-4">
                         {careStaff.map((member) => (
@@ -862,9 +879,9 @@ export default function TeamOnboardingPage() {
               <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
                 Rejected
               </h2>
-              <span className="text-xs text-muted">{rejectedQueue.length} rejected</span>
+              <span className="text-sm font-medium text-slate-700">{rejectedQueue.length} rejected</span>
             </div>
-            <p className="mb-3 text-xs leading-5 text-muted">
+            <p className="mb-3 text-sm leading-6 text-slate-700">
               Rejected candidates can be restored to Onboarding for another review, or removed from
               the team.
             </p>
@@ -1080,7 +1097,7 @@ function MemberRow({
             {member.phone ? ` · ${member.phone}` : ""}
           </p>
           {member.registration ? (
-            <p className="text-xs text-muted">Reg. {member.registration}</p>
+            <p className="text-sm font-medium text-slate-700">Reg. {member.registration}</p>
           ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">

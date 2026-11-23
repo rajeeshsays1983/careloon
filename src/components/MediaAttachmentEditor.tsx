@@ -112,7 +112,7 @@ export function MediaAttachmentEditor({
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-xs font-medium text-slate-800">{attachment.name}</p>
-                  <p className="text-[11px] text-muted">{formatBytes(attachment.size)}</p>
+                  <p className="text-xs text-muted">{formatBytes(attachment.size)}</p>
                 </div>
                 <button
                   type="button"

@@ -135,7 +135,7 @@ export function PmrApprovalPanel({
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-600">{title}</h2>
           <p className="mt-1 text-xs leading-5 text-muted">{description}</p>
         </div>
-        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-medium text-amber-800">
+        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
           {items.length} in queue
         </span>
       </div>
@@ -185,14 +185,14 @@ export function PmrApprovalPanel({
                   <p className="text-sm font-medium text-slate-900">{item.title}</p>
                   <p className="mt-0.5 text-xs text-muted">{item.subtitle}</p>
                   {item.meta ? (
-                    <p className="mt-0.5 text-[11px] leading-4 text-muted">{item.meta}</p>
+                    <p className="mt-0.5 text-xs leading-4 text-muted">{item.meta}</p>
                   ) : null}
                 </div>
                 <ApprovalBadge status={item.approvalStatus} />
               </div>
 
               {item.reviewedAt ? (
-                <p className="mt-2 text-[11px] text-muted">
+                <p className="mt-2 text-xs text-muted">
                   Reviewed by {item.reviewedByName || "approver"} ·{" "}
                   {new Date(item.reviewedAt).toLocaleString()}
                 </p>
@@ -281,7 +281,7 @@ export function PmrApprovalPanel({
                       type="button"
                       onClick={() => reject(item)}
                       disabled={!reviewer}
-                      className="whitespace-nowrap rounded-lg bg-rose-600 px-1.5 py-1 text-[11px] font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="whitespace-nowrap rounded-lg bg-rose-600 px-1.5 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Confirm rejection
                     </button>
@@ -289,7 +289,7 @@ export function PmrApprovalPanel({
                       type="button"
                       onClick={() => approve(item)}
                       disabled={!reviewer}
-                      className="whitespace-nowrap rounded-lg border border-border bg-white px-1.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="whitespace-nowrap rounded-lg border border-border bg-white px-1.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Approve instead
                     </button>
@@ -299,7 +299,7 @@ export function PmrApprovalPanel({
                         setOpenId(null);
                         setErrors((prev) => ({ ...prev, [item.id]: "" }));
                       }}
-                      className="whitespace-nowrap rounded-lg px-1.5 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-100"
+                      className="whitespace-nowrap rounded-lg px-1.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
                     >
                       Cancel
                     </button>
@@ -311,7 +311,7 @@ export function PmrApprovalPanel({
                     type="button"
                     onClick={() => approve(item)}
                     disabled={!reviewer}
-                    className="whitespace-nowrap rounded-lg bg-brand px-2 py-1 text-[11px] font-semibold text-white hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
+                    className="whitespace-nowrap rounded-lg bg-brand px-2 py-1 text-xs font-semibold text-white hover:bg-brand-strong disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Approve
                   </button>
@@ -320,7 +320,7 @@ export function PmrApprovalPanel({
                       type="button"
                       onClick={() => openRejection(item)}
                       disabled={!reviewer}
-                      className="whitespace-nowrap rounded-lg border border-rose-200 bg-white px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="whitespace-nowrap rounded-lg border border-rose-200 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Reject
                     </button>
@@ -329,7 +329,7 @@ export function PmrApprovalPanel({
                     <button
                       type="button"
                       onClick={() => onRemove(item.id)}
-                      className="whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-100"
+                      className="whitespace-nowrap rounded-lg border border-border bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
                     >
                       Remove
                     </button>

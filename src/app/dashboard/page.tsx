@@ -285,21 +285,19 @@ export default function DashboardPage() {
 
   return (
     <AuthGuard>
-      <main className="min-h-screen w-full bg-gradient-to-br from-indigo-50/70 via-slate-50 to-teal-50/60 px-4 pb-10 pt-5 sm:px-6">
+      <main className="min-h-screen w-full bg-gradient-to-br from-indigo-100/80 via-slate-50 to-teal-100/70 px-4 pb-10 pt-5 sm:px-6">
         <div className="w-full">
-          <header className="relative mb-5 overflow-hidden rounded-3xl border border-white/80 bg-white/85 p-4 shadow-lg shadow-indigo-900/5 backdrop-blur sm:p-5">
-            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-teal-400" />
-            <div className="pointer-events-none absolute -right-12 -top-20 h-48 w-48 rounded-full bg-gradient-to-br from-indigo-200/50 to-teal-200/40 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-24 left-1/3 h-40 w-40 rounded-full bg-gradient-to-tr from-violet-200/40 to-sky-200/40 blur-3xl" />
+          <header className="relative mb-5 overflow-hidden rounded-3xl bg-gradient-to-r from-indigo-600 via-violet-600 to-teal-500 p-5 text-white shadow-xl shadow-indigo-500/25 sm:p-6">
+            <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-28 left-1/4 h-56 w-56 rounded-full bg-white/10 blur-2xl" />
+            <div className="pointer-events-none absolute right-1/3 top-0 h-24 w-24 rounded-full bg-fuchsia-300/20 blur-2xl" />
             <div className="relative grid grid-cols-[1fr_auto] items-start gap-x-3 gap-y-4 sm:grid-cols-[1fr_auto_auto] sm:items-center">
               <div className="min-w-0">
-                <p className="bg-gradient-to-r from-indigo-600 via-violet-600 to-teal-500 bg-clip-text text-xs font-bold tracking-[0.18em] text-transparent">
-                  CARELOON
-                </p>
-                <h1 className="mt-1 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-900 bg-clip-text text-2xl font-semibold tracking-tight text-transparent sm:text-3xl">
+                <p className="text-xs font-bold tracking-[0.18em] text-white/75">CARELOON</p>
+                <h1 className="mt-1 text-2xl font-bold tracking-tight text-white drop-shadow-sm sm:text-3xl">
                   {dashboardTitle}
                 </h1>
-                <p className="mt-1 text-sm text-muted">
+                <p className="mt-1 text-sm text-white/80">
                   {user
                     ? `Signed in as ${user.name}${currentMember ? ` · ${ROLE_LABELS[currentMember.role]}` : ""}`
                     : "Patient-wise reports for your team."}
@@ -309,19 +307,19 @@ export default function DashboardPage() {
               <nav className="col-span-2 row-start-2 flex w-full flex-wrap items-center gap-1.5 sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:w-auto sm:justify-end sm:gap-2">
                 <Link
                   href="/chat"
-                  className="shrink-0 whitespace-nowrap rounded-lg border border-indigo-100 bg-white/90 px-2 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 sm:px-3 sm:py-2 sm:text-sm"
+                  className="shrink-0 whitespace-nowrap rounded-lg border border-white/30 bg-white/15 px-2 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:border-white/60 hover:bg-white/25 sm:px-3 sm:py-2 sm:text-sm"
                 >
                   Treatment
                 </Link>
                 <Link
                   href="/onboarding"
-                  className="shrink-0 whitespace-nowrap rounded-lg border border-indigo-100 bg-white/90 px-2 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 sm:px-3 sm:py-2 sm:text-sm"
+                  className="shrink-0 whitespace-nowrap rounded-lg border border-white/30 bg-white/15 px-2 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:border-white/60 hover:bg-white/25 sm:px-3 sm:py-2 sm:text-sm"
                 >
                   Patient
                 </Link>
                 <Link
                   href="/team-onboarding"
-                  className="shrink-0 whitespace-nowrap rounded-lg border border-indigo-100 bg-white/90 px-2 py-1.5 text-xs font-medium text-slate-600 shadow-sm transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 sm:px-3 sm:py-2 sm:text-sm"
+                  className="shrink-0 whitespace-nowrap rounded-lg border border-white/30 bg-white/15 px-2 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:border-white/60 hover:bg-white/25 sm:px-3 sm:py-2 sm:text-sm"
                 >
                   Team
                 </Link>
@@ -410,7 +408,7 @@ export default function DashboardPage() {
                 {item.label}
                 {item.id === "pending" && stats.pending > 0 ? (
                   <span
-                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] ${
+                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-xs ${
                       filter === item.id ? "bg-white/20" : "bg-amber-100 text-amber-800"
                     }`}
                   >
@@ -419,7 +417,7 @@ export default function DashboardPage() {
                 ) : null}
                 {item.id === "changes_requested" && stats.changes > 0 ? (
                   <span
-                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[11px] ${
+                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-xs ${
                       filter === item.id ? "bg-white/20" : "bg-rose-100 text-rose-800"
                     }`}
                   >
@@ -595,7 +593,7 @@ function CountBadge({
   }[tone];
 
   return (
-    <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${toneClass}`}>
+    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${toneClass}`}>
       {value} {label.toLowerCase()}
     </span>
   );
@@ -744,7 +742,7 @@ function ReportReviewCard({
           </p>
         </div>
         <span
-          className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_STYLES[report.reviewStatus]}`}
+          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[report.reviewStatus]}`}
         >
           {REVIEW_STATUS_LABELS[report.reviewStatus]}
         </span>
@@ -994,7 +992,7 @@ function ReportAttachments({ attachments }: { attachments: MediaAttachment[] }) 
                 Your browser does not support audio playback.
               </audio>
             )}
-            <div className="flex items-center justify-between gap-2 px-2 py-1 text-[11px] text-muted">
+            <div className="flex items-center justify-between gap-2 px-2 py-1 text-xs text-muted">
               <span className="truncate">{attachment.name}</span>
               <span className="shrink-0">{formatBytes(attachment.size)}</span>
             </div>

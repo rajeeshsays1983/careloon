@@ -821,7 +821,7 @@ export default function TeamOnboardingPage() {
                     key={manager.id}
                     className="rounded-2xl border border-teal-200 bg-teal-50/60 p-4"
                   >
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-teal-800">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
                       Team lead · PMR Doctor
                     </p>
                     <MemberRow member={manager} onDelete={handleDelete} />
@@ -1071,7 +1071,7 @@ function MemberRow({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-medium text-slate-900">{member.fullName}</p>
-            <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-[11px] font-medium text-brand-strong">
+            <span className="rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand-strong">
               {member.specialty || ROLE_LABELS[member.role]}
             </span>
           </div>
@@ -1201,7 +1201,7 @@ function MemberRow({
               type="button"
               onClick={submitAssign}
               disabled={saving || !selectedDutyDoctorId}
-              className="rounded-lg bg-indigo-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"
+              className="rounded-lg bg-indigo-700 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-800 disabled:opacity-60"
             >
               Assign
             </button>
@@ -1211,7 +1211,7 @@ function MemberRow({
                 setAssignOpen(false);
                 setError("");
               }}
-              className="rounded-lg px-2 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-100"
+              className="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
             >
               Cancel
             </button>
@@ -1236,7 +1236,7 @@ function MemberRow({
               type="button"
               onClick={() => submitReview("approved")}
               disabled={saving}
-              className="rounded-lg bg-brand px-2 py-1 text-[11px] font-semibold text-white hover:bg-brand-strong disabled:opacity-60"
+              className="rounded-lg bg-brand px-2 py-1 text-xs font-semibold text-white hover:bg-brand-strong disabled:opacity-60"
             >
               Approve anyway
             </button>
@@ -1244,7 +1244,7 @@ function MemberRow({
               type="button"
               onClick={() => submitReview("rejected")}
               disabled={saving}
-              className="rounded-lg bg-rose-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
+              className="rounded-lg bg-rose-600 px-2 py-1 text-xs font-semibold text-white hover:bg-rose-700 disabled:opacity-60"
             >
               Confirm rejection
             </button>
@@ -1254,7 +1254,7 @@ function MemberRow({
                 setReviewOpen(false);
                 setError("");
               }}
-              className="rounded-lg px-2 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-100"
+              className="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
             >
               Cancel
             </button>
@@ -1279,7 +1279,7 @@ function MemberRow({
               type="button"
               onClick={submitRecommendation}
               disabled={saving}
-              className="rounded-lg bg-sky-700 px-2 py-1 text-[11px] font-semibold text-white hover:bg-sky-800 disabled:opacity-60"
+              className="rounded-lg bg-sky-700 px-2 py-1 text-xs font-semibold text-white hover:bg-sky-800 disabled:opacity-60"
             >
               Submit recommendation
             </button>
@@ -1289,7 +1289,7 @@ function MemberRow({
                 setRecommendOpen(false);
                 setError("");
               }}
-              className="rounded-lg px-2 py-1 text-[11px] font-medium text-slate-500 hover:bg-slate-100"
+              className="rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
             >
               Cancel
             </button>

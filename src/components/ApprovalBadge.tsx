@@ -9,7 +9,7 @@ const STATUS_STYLES: Record<ApprovalStatus, string> = {
 export function ApprovalBadge({ status }: { status: ApprovalStatus }) {
   return (
     <span
-      className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${STATUS_STYLES[status]}`}
+      className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
     >
       {APPROVAL_STATUS_LABELS[status]}
     </span>

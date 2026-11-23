@@ -225,7 +225,7 @@ export function ChatComposer({
               )}
               <span className="min-w-0">
                 <span className="block max-w-[180px] truncate font-medium">{attachment.name}</span>
-                <span className="text-[11px] text-muted">
+                <span className="text-xs text-muted">
                   {attachment.kind} · {formatBytes(attachment.size)}
                 </span>
               </span>
@@ -318,11 +318,11 @@ export function ChatComposer({
           </button>
         </div>
         {canUseMic ? (
-          <p className="text-center text-[11px] leading-4 text-muted">
+          <p className="text-center text-xs leading-4 text-muted">
             Photos, videos and audio up to 100 MB · Enter to send · Shift + Enter for a new line
           </p>
         ) : (
-          <p className="text-center text-[11px] leading-4 text-amber-700">
+          <p className="text-center text-xs leading-4 text-amber-700">
             Select the patient receiving treatment from the list to enable the microphone and media.
           </p>
         )}

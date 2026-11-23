@@ -345,7 +345,7 @@ export default function ChatPage() {
             <section className="rounded-2xl border border-border bg-white p-3 shadow-sm">
               <div className="mb-2 flex items-baseline justify-between gap-2 px-1">
                 <h2 className="text-sm font-semibold text-slate-900">Select patient</h2>
-                <span className="text-[11px] text-muted">{messages.length} total updates</span>
+                <span className="text-xs text-muted">{messages.length} total updates</span>
               </div>
               <label htmlFor="patient-channel-search" className="sr-only">
                 Search patients
@@ -377,7 +377,7 @@ export default function ChatPage() {
                         <span className="truncate text-sm font-medium text-slate-900">
                           {channel.name}
                         </span>
-                        <span className="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[11px] font-medium text-slate-500">
+                        <span className="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-xs font-medium text-slate-500">
                           {messageCounts.get(channel.id) ?? 0}
                         </span>
                       </span>
@@ -393,7 +393,7 @@ export default function ChatPage() {
                   No approved patients yet. Add and approve a patient in Patient onboarding first.
                 </p>
               ) : null}
-              <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-[11px] leading-5 text-muted">
+              <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-xs leading-5 text-muted">
                 Updates are saved in this browser. Use “Log as report” on a patient update to add it
                 to the doctor review dashboard.
               </p>
@@ -402,7 +402,7 @@ export default function ChatPage() {
             <section className="flex min-h-[560px] flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
               <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border px-4 py-3">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-brand">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-brand">
                     Patient channel
                   </p>
                   <h2 className="truncate text-base font-semibold text-slate-900">
@@ -468,7 +468,7 @@ export default function ChatPage() {
                           }`}
                         >
                           <div
-                            className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] ${
+                            className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs ${
                               mine ? "text-teal-50" : "text-muted"
                             }`}
                           >
@@ -504,7 +504,7 @@ export default function ChatPage() {
                             />
                           ) : null}
                           {message.reportId ? (
-                            <p className="mt-2 text-[11px] font-medium text-emerald-700">
+                            <p className="mt-2 text-xs font-medium text-emerald-700">
                               ✓ Logged for review ·{" "}
                               <Link href="/dashboard" className="underline">
                                 View dashboard
@@ -515,7 +515,7 @@ export default function ChatPage() {
                               type="button"
                               onClick={() => handleLogReport(message)}
                               disabled={loggingId === message.id}
-                              className="mt-2 rounded-lg border border-border bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                              className="mt-2 rounded-lg border border-border bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
                             >
                               {loggingId === message.id ? "Logging…" : "Log as report"}
                             </button>
@@ -598,7 +598,7 @@ function MessageAttachments({
               </audio>
             )}
             <div
-              className={`flex items-center justify-between gap-2 px-2 py-1 text-[11px] ${
+              className={`flex items-center justify-between gap-2 px-2 py-1 text-xs ${
                 mine ? "text-teal-50" : "text-muted"
               }`}
             >

@@ -75,7 +75,7 @@ export function SignOutButton({ className = "" }: { className?: string }) {
         aria-expanded={open}
         className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-2 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 sm:px-3 sm:py-2 sm:text-sm"
       >
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-[11px] font-semibold text-white">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand text-xs font-semibold text-white">
           {initial}
         </span>
         <span className="max-w-[160px] truncate">{user.name}</span>
@@ -99,7 +99,7 @@ export function SignOutButton({ className = "" }: { className?: string }) {
           <div className="border-b border-border px-3 py-2.5">
             <p className="truncate text-sm font-semibold text-slate-900">{user.name}</p>
             <p className="truncate text-xs text-muted">{user.email}</p>
-            {roleLabel ? <p className="mt-0.5 text-[11px] font-medium text-brand">{roleLabel}</p> : null}
+            {roleLabel ? <p className="mt-0.5 text-xs font-medium text-brand">{roleLabel}</p> : null}
           </div>
           <button
             type="button"
